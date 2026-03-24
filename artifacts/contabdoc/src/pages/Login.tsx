@@ -77,9 +77,9 @@ export default function Login() {
   return (
     <div className="min-h-screen flex">
       {/* Painel esquerdo — branding */}
-      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden flex-col items-center justify-center p-12 bg-[#1a2f50]">
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden flex-col items-center justify-center p-12 bg-[#1e3c68]">
         {/* Decorações de fundo */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/12 via-transparent to-indigo-900/15 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500/15 via-transparent to-indigo-800/20 pointer-events-none" />
         <div className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full bg-blue-500/8 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
         <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-indigo-500/8 translate-x-1/4 translate-y-1/4 pointer-events-none" />
 
@@ -90,7 +90,10 @@ export default function Login() {
               <ShieldCheck className="w-7 h-7 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">ContabDOC</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-white tracking-tight">ContabDOC</h1>
+                <span className="text-[10px] font-bold text-amber-400 border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 rounded tracking-widest uppercase">v 1.0</span>
+              </div>
               <p className="text-blue-400/90 text-xs font-medium tracking-wide uppercase">Sistema de Gestão Documental CONTÁBIL</p>
             </div>
           </div>
