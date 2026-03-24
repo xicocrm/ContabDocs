@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API } from "@/lib/api";
 import { useEscritorio } from "@/contexts/EscritorioContext";
@@ -47,7 +47,7 @@ function getIconForType(tipo: string | null) {
 }
 
 export default function PortalGerenciar() {
-  const { escritorio } = useEscritorio();
+  const { escritorioId } = useEscritorio();
   const qc = useQueryClient();
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -59,7 +59,29 @@ export default function PortalGerenciar() {
   const [uploading, setUploading] = useState(false);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
 
-  const escritorioId = escritorio?.id;
+  const { setEscritorio } = useEscritorio();
+
+  // Busca todos os escritórios para auto-seleção
+  const { data: todosEscritorios = [] } = useQuery<{ id: number; slug?: string | null; nomeFantasia?: string | null; razaoSocial?: string | null }[]>({
+    queryKey: ["escritorios-lista"],
+    queryFn: () => API.get("/escritorios"),
+    enabled: !escritorioId,
+  });
+
+  // Auto-seleciona quando há apenas um escritório e nenhum está selecionado
+  useEffect(() => {
+    if (!escritorioId && todosEscritorios.length === 1) {
+      const e = todosEscritorios[0];
+      setEscritorio(e.id, e.nomeFantasia || e.razaoSocial || String(e.id));
+    }
+  }, [escritorioId, todosEscritorios, setEscritorio]);
+
+  // Busca o escritório ativo para obter o slug
+  const { data: escritorioData } = useQuery<{ id: number; slug?: string | null; nomeFantasia?: string | null }>({
+    queryKey: ["escritorio-ativo", escritorioId],
+    queryFn: () => API.get(`/escritorios/${escritorioId}`),
+    enabled: !!escritorioId,
+  });
 
   const { data: clientes = [] } = useQuery<Cliente[]>({
     queryKey: ["clientes-portal", escritorioId],
@@ -139,7 +161,7 @@ export default function PortalGerenciar() {
     return c?.razaoSocial || c?.nomeResponsavel || `Cliente #${id}`;
   };
 
-  const slug = (escritorio as any)?.slug;
+  const slug = escritorioData?.slug;
   const base = (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
   const portalUrl = slug ? `${window.location.origin}${base}/portal/${slug}` : null;
 
@@ -161,9 +183,15 @@ export default function PortalGerenciar() {
           </div>
         )}
 
-        {!slug && (
+        {!escritorioId && todosEscritorios.length > 1 && (
+          <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
+            <p className="text-orange-400 text-sm">⚠️ Selecione o escritório ativo na página de Escritórios antes de usar o Portal.</p>
+          </div>
+        )}
+
+        {escritorioId && !slug && escritorioData && (
           <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
-            <p className="text-yellow-400 text-sm">⚠️ Configure o slug do escritório na página de Configurações do Escritório para ativar o portal.</p>
+            <p className="text-yellow-400 text-sm">⚠️ Configure o slug do escritório na página de Escritórios para ativar o portal.</p>
           </div>
         )}
 
