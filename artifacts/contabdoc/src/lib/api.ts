@@ -1,6 +1,6 @@
 const getBase = () => (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
-const getToken = () => localStorage.getItem("contabdoc_token") || "";
+const getToken = () => localStorage.getItem("contabdoc_token") || sessionStorage.getItem("contabdoc_token") || "";
 
 const authHeader = () => {
   const t = getToken();
