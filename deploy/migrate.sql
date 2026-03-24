@@ -128,3 +128,7 @@ CREATE TABLE IF NOT EXISTS consultas_fiscais (
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
+
+  -- Add codigo_cliente to clientes table
+  ALTER TABLE clientes ADD COLUMN IF NOT EXISTS codigo_cliente TEXT;
+  

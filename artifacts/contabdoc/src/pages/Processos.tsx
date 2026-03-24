@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { SemEscritorio } from "@/components/SemEscritorio";
-import { Loader2, Plus, Edit, Trash2, Scale, Search, AlertCircle } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, ClipboardCheck, Search, Clock, CheckCircle2, AlertCircle, FileSearch } from "lucide-react";
 
 interface Processo {
   id: number; escritorioId: number; clienteId?: number; numero: string; tipo?: string;
@@ -25,15 +25,37 @@ interface Processo {
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  ativo:        { label: "Ativo",        color: "bg-green-500/20 text-green-400 border-green-500/30" },
-  suspenso:     { label: "Suspenso",     color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  arquivado:    { label: "Arquivado",    color: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
-  encerrado:    { label: "Encerrado",    color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  aguardando_docs:   { label: "Aguard. Documentos", color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
+  em_processamento:  { label: "Em Processamento",   color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
+  revisao:           { label: "Em Revisão",          color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
+  concluido:         { label: "Concluído",            color: "bg-green-500/20 text-green-400 border-green-500/30" },
+  entregue:          { label: "Entregue",             color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+  cancelado:         { label: "Cancelado",            color: "bg-gray-500/20 text-gray-400 border-gray-500/30" },
 };
 
-const TIPOS = ["Tributário","Trabalhista","Civil","Previdenciário","Criminal","Administrativo","Outro"];
+const TIPOS_CONTABEIS = [
+  "IRPF — Imposto de Renda PF",
+  "IRPJ — Imposto de Renda PJ",
+  "Simples Nacional / PGDAS",
+  "eSocial",
+  "SPED Contábil (ECD)",
+  "SPED Fiscal (EFD)",
+  "REINF",
+  "DCTF",
+  "ECF — Escrituração Contábil Fiscal",
+  "DEFIS",
+  "DAS / Guia Simples",
+  "GFIP / SEFIP",
+  "Folha de Pagamento",
+  "DIRF",
+  "BPO Contábil",
+  "Abertura de Empresa",
+  "Encerramento de Empresa",
+  "Alteração Contratual",
+  "Outro",
+];
 
-const empty: Partial<Processo> = { status: "ativo", numero: "" };
+const empty: Partial<Processo> = { status: "aguardando_docs", numero: "" };
 
 export default function ProcessosPage() {
   const { escritorioId } = useEscritorio();
@@ -81,24 +103,30 @@ export default function ProcessosPage() {
   const filtered = useMemo(() =>
     processos.filter(p =>
       (statusFilter === "todos" || p.status === statusFilter) &&
-      (p.numero.toLowerCase().includes(search.toLowerCase()) || (p.tipo||"").toLowerCase().includes(search.toLowerCase()))
+      (p.numero.toLowerCase().includes(search.toLowerCase()) ||
+       (p.tipo || "").toLowerCase().includes(search.toLowerCase()) ||
+       (p.vara || "").toLowerCase().includes(search.toLowerCase()))
     ), [processos, statusFilter, search]);
 
   const count = (s: string) => processos.filter(p => p.status === s).length;
 
-  const openNew = () => { setForm({ ...empty }); setEditId(null); setOpen(true); };
+  const openNew = () => {
+    const n = `PROC-${String(processos.length + 1).padStart(4, "0")}`;
+    setForm({ ...empty, numero: n });
+    setEditId(null); setOpen(true);
+  };
   const openEdit = (p: Processo) => { setForm(p); setEditId(p.id); setOpen(true); };
 
-  if (!escritorioId) return <AppLayout title="Processos"><SemEscritorio /></AppLayout>;
+  if (!escritorioId) return <AppLayout title="Processos Contábeis"><SemEscritorio /></AppLayout>;
 
   return (
-    <AppLayout title="Processos">
+    <AppLayout title="Processos Contábeis">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {[
-          { label: "Total", value: String(processos.length), icon: Scale, color: "text-primary", bg: "bg-primary/10" },
-          { label: "Ativos", value: String(count("ativo")), icon: AlertCircle, color: "text-green-400", bg: "bg-green-500/10" },
-          { label: "Suspensos", value: String(count("suspenso")), icon: AlertCircle, color: "text-yellow-400", bg: "bg-yellow-500/10" },
-          { label: "Encerrados", value: String(count("encerrado")), icon: AlertCircle, color: "text-blue-400", bg: "bg-blue-500/10" },
+          { label: "Total", value: String(processos.length), icon: ClipboardCheck, color: "text-primary", bg: "bg-primary/10" },
+          { label: "Aguard. Docs", value: String(count("aguardando_docs")), icon: FileSearch, color: "text-orange-400", bg: "bg-orange-500/10" },
+          { label: "Em Andamento", value: String(count("em_processamento") + count("revisao")), icon: Clock, color: "text-blue-400", bg: "bg-blue-500/10" },
+          { label: "Concluídos", value: String(count("concluido") + count("entregue")), icon: CheckCircle2, color: "text-green-400", bg: "bg-green-500/10" },
         ].map(k => (
           <Card key={k.label} className="bg-card border-border/50">
             <CardContent className="p-5 flex items-center gap-4">
@@ -112,11 +140,11 @@ export default function ProcessosPage() {
       <Card className="bg-card border-border/50 shadow-xl">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-            <h3 className="font-semibold text-foreground text-lg">Processos Jurídicos</h3>
+            <h3 className="font-semibold text-foreground text-lg">Controle de Processos Contábeis</h3>
             <div className="flex items-center gap-3">
-              <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Nº / Tipo..." value={search} onChange={e=>setSearch(e.target.value)} className="pl-9 bg-background w-48" /></div>
+              <div className="relative"><Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" /><Input placeholder="Nº / Tipo / Responsável..." value={search} onChange={e=>setSearch(e.target.value)} className="pl-9 bg-background w-52" /></div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="bg-background w-36"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-background w-44"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
                   {Object.entries(STATUS_MAP).map(([k,v]) => <SelectItem key={k} value={k}>{v.label}</SelectItem>)}
@@ -129,17 +157,17 @@ export default function ProcessosPage() {
           {isLoading ? (
             <div className="flex justify-center py-16"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-16"><Scale className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" /><p className="text-muted-foreground">Nenhum processo encontrado</p></div>
+            <div className="text-center py-16"><ClipboardCheck className="w-14 h-14 text-muted-foreground/30 mx-auto mb-4" /><p className="text-muted-foreground">Nenhum processo encontrado</p></div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow className="border-border/50">
                   <TableHead>Número</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Tribunal</TableHead>
-                  <TableHead>Vara/Comarca</TableHead>
-                  <TableHead>Valor Causa</TableHead>
-                  <TableHead>Abertura</TableHead>
+                  <TableHead>Serviço / Tipo</TableHead>
+                  <TableHead>Competência</TableHead>
+                  <TableHead>Responsável</TableHead>
+                  <TableHead>Prazo</TableHead>
+                  <TableHead>Últ. Andamento</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -147,16 +175,16 @@ export default function ProcessosPage() {
               <TableBody>
                 {filtered.map(p => (
                   <TableRow key={p.id} className="border-border/50 hover:bg-secondary/40">
-                    <TableCell className="font-mono text-xs">{p.numero}</TableCell>
-                    <TableCell className="text-sm">{p.tipo || "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{p.tribunal || "—"}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{p.vara || p.comarca || "—"}</TableCell>
-                    <TableCell className="font-mono text-sm">{p.valorCausa || "—"}</TableCell>
-                    <TableCell className="text-sm">{p.dataAbertura || "—"}</TableCell>
-                    <TableCell><Badge variant="outline" className={`text-xs ${STATUS_MAP[p.status]?.color || ""}`}>{STATUS_MAP[p.status]?.label || p.status}</Badge></TableCell>
+                    <TableCell className="font-mono text-xs text-primary">{p.numero}</TableCell>
+                    <TableCell className="text-sm font-medium max-w-[180px] truncate">{p.tipo || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground font-mono">{p.tribunal || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{p.vara || "—"}</TableCell>
+                    <TableCell className={`text-sm font-mono ${p.comarca === 'vencido' ? 'text-red-400' : ''}`}>{p.dataAbertura || "—"}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">{p.dataUltimoAndamento || "—"}</TableCell>
+                    <TableCell><Badge variant="outline" className={`text-xs whitespace-nowrap ${STATUS_MAP[p.status]?.color || ""}`}>{STATUS_MAP[p.status]?.label || p.status}</Badge></TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Edit className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => confirm("Excluir?") && del.mutate(p.id)}><Trash2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => confirm("Excluir este processo?") && del.mutate(p.id)}><Trash2 className="w-4 h-4" /></Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -167,11 +195,14 @@ export default function ProcessosPage() {
       </Card>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="bg-card border-border/50 max-w-lg">
-          <DialogHeader><DialogTitle>{editId ? "Editar Processo" : "Novo Processo"}</DialogTitle></DialogHeader>
+        <DialogContent className="bg-card border-border/50 max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>{editId ? "Editar Processo" : "Novo Processo Contábil"}</DialogTitle></DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Número *</Label><Input value={form.numero||""} onChange={e=>setForm(p=>({...p,numero:e.target.value}))} className="bg-background font-mono" /></div>
+              <div className="space-y-2">
+                <Label>Número *</Label>
+                <Input value={form.numero||""} onChange={e=>setForm(p=>({...p,numero:e.target.value}))} className="bg-background font-mono" placeholder="PROC-0001" />
+              </div>
               <div className="space-y-2">
                 <Label>Status</Label>
                 <Select value={form.status} onValueChange={v=>setForm(p=>({...p,status:v}))}>
@@ -180,26 +211,48 @@ export default function ProcessosPage() {
                 </Select>
               </div>
             </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de Serviço *</Label>
+              <Select value={form.tipo||""} onValueChange={v=>setForm(p=>({...p,tipo:v}))}>
+                <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione o serviço..." /></SelectTrigger>
+                <SelectContent>
+                  {TIPOS_CONTABEIS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Tipo</Label>
-                <Select value={form.tipo||""} onValueChange={v=>setForm(p=>({...p,tipo:v}))}>
-                  <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>{TIPOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
-                </Select>
+                <Label>Competência</Label>
+                <Input value={form.tribunal||""} onChange={e=>setForm(p=>({...p,tribunal:e.target.value}))} className="bg-background font-mono" placeholder="MM/AAAA" />
               </div>
-              <div className="space-y-2"><Label>Valor da Causa</Label><Input value={form.valorCausa||""} onChange={e=>setForm(p=>({...p,valorCausa:formatters.currency(e.target.value)}))} className="bg-background font-mono" placeholder="R$ 0,00" /></div>
+              <div className="space-y-2">
+                <Label>Responsável</Label>
+                <Input value={form.vara||""} onChange={e=>setForm(p=>({...p,vara:e.target.value}))} className="bg-background" placeholder="Nome do contador" />
+              </div>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Tribunal</Label><Input value={form.tribunal||""} onChange={e=>setForm(p=>({...p,tribunal:e.target.value}))} className="bg-background" /></div>
-              <div className="space-y-2"><Label>Vara</Label><Input value={form.vara||""} onChange={e=>setForm(p=>({...p,vara:e.target.value}))} className="bg-background" /></div>
+              <div className="space-y-2">
+                <Label>Prazo de Entrega</Label>
+                <Input value={form.dataAbertura||""} onChange={e=>setForm(p=>({...p,dataAbertura:formatters.date(e.target.value)}))} className="bg-background font-mono" placeholder="DD/MM/AAAA" maxLength={10} />
+              </div>
+              <div className="space-y-2">
+                <Label>Últ. Andamento</Label>
+                <Input value={form.dataUltimoAndamento||""} onChange={e=>setForm(p=>({...p,dataUltimoAndamento:formatters.date(e.target.value)}))} className="bg-background font-mono" placeholder="DD/MM/AAAA" maxLength={10} />
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Comarca</Label><Input value={form.comarca||""} onChange={e=>setForm(p=>({...p,comarca:e.target.value}))} className="bg-background" /></div>
-              <div className="space-y-2"><Label>Data Abertura</Label><Input value={form.dataAbertura||""} onChange={e=>setForm(p=>({...p,dataAbertura:formatters.date(e.target.value)}))} className="bg-background font-mono" placeholder="DD/MM/AAAA" maxLength={10} /></div>
+
+            <div className="space-y-2">
+              <Label>Descrição / Andamento</Label>
+              <Textarea value={form.descricao||""} onChange={e=>setForm(p=>({...p,descricao:e.target.value}))} className="bg-background resize-none" rows={3} placeholder="Descreva o andamento atual do processo..." />
             </div>
-            <div className="space-y-2"><Label>Descrição / Objeto</Label><Textarea value={form.descricao||""} onChange={e=>setForm(p=>({...p,descricao:e.target.value}))} className="bg-background resize-none" rows={3} /></div>
-            <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes||""} onChange={e=>setForm(p=>({...p,observacoes:e.target.value}))} className="bg-background resize-none" rows={2} /></div>
+            <div className="space-y-2">
+              <Label>Observações</Label>
+              <Textarea value={form.observacoes||""} onChange={e=>setForm(p=>({...p,observacoes:e.target.value}))} className="bg-background resize-none" rows={2} />
+            </div>
+
             <Button onClick={() => save.mutate(form)} disabled={!form.numero} className="w-full bg-primary">
               Salvar
             </Button>

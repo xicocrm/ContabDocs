@@ -40,8 +40,13 @@ import {
 const emptyCliente = {
   tipo: 'PJ', cnpj: '', cpf: '', razaoSocial: '', nomeFantasia: '', nomeResponsavel: '',
   email: '', telefone: '', celular: '', cep: '', logradouro: '', numero: '', complemento: '',
-  bairro: '', municipio: '', uf: '', situacaoReceita: '', socios: '', regimeTributario: '', atividadePrincipal: ''
+  bairro: '', municipio: '', uf: '', situacaoReceita: '', socios: '', regimeTributario: '',
+  atividadePrincipal: '', codigoCliente: ''
 };
+
+function gerarCodigoCliente(total: number) {
+  return `CLI-${String(total + 1).padStart(4, '0')}`;
+}
 
 const emptyContrato = {
   clienteId: 0, numeroContrato: '', valorContrato: '', dataContrato: '',
@@ -117,7 +122,11 @@ export default function ClientesPage() {
   );
 
   const openNew = () => {
-    setClienteForm({ ...emptyCliente, escritorioId: selectedEscritorioId ?? undefined });
+    setClienteForm({
+      ...emptyCliente,
+      escritorioId: selectedEscritorioId ?? undefined,
+      codigoCliente: gerarCodigoCliente(clientes.length),
+    });
     setClienteId(null);
     setActiveTab("dados");
     setView('detail');
@@ -365,6 +374,20 @@ export default function ClientesPage() {
                             ))}
                           </SelectContent>
                         </Select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Código do cliente */}
+                  <div className="flex items-center gap-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="flex-1">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Código do Cliente</Label>
+                      <p className="font-mono text-xl font-bold text-primary mt-0.5">{clienteForm.codigoCliente || '—'}</p>
+                    </div>
+                    {clienteForm.codigoCliente && (
+                      <div className="text-xs text-muted-foreground text-right">
+                        <p>ID interno</p>
+                        <p>gerado automaticamente</p>
                       </div>
                     )}
                   </div>
@@ -724,6 +747,7 @@ export default function ClientesPage() {
               <TableHeader className="bg-secondary/50">
                 <TableRow className="border-border/50 hover:bg-transparent">
                   <TableHead className="w-10">Tipo</TableHead>
+                  <TableHead className="w-24">Código</TableHead>
                   <TableHead>Nome / Razão Social</TableHead>
                   <TableHead>Documento</TableHead>
                   <TableHead>Regime</TableHead>
@@ -734,7 +758,7 @@ export default function ClientesPage() {
               <TableBody>
                 {filteredClientes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center py-16 text-muted-foreground">
                       <User className="w-10 h-10 mx-auto mb-3 opacity-30" />
                       Nenhum cliente encontrado. <button onClick={openNew} className="text-primary underline ml-1">Cadastrar agora</button>
                     </TableCell>
@@ -745,6 +769,11 @@ export default function ClientesPage() {
                       <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
                         {c.tipo === 'PJ' ? <Building2 className="w-4 h-4" /> : <User className="w-4 h-4" />}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded">
+                        {(c as any).codigoCliente || `#${c.id}`}
+                      </span>
                     </TableCell>
                     <TableCell>
                       <div>
