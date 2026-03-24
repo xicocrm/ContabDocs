@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { APP_VERSION } from "@/lib/version";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,7 +93,7 @@ export default function Login() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold text-white tracking-tight">ContabDOC</h1>
-                <span className="text-[10px] font-bold text-amber-400 border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 rounded tracking-widest uppercase">v 1.0</span>
+                <span className="text-[10px] font-bold text-amber-400 border border-amber-400/40 bg-amber-400/10 px-1.5 py-0.5 rounded tracking-widest uppercase">v {APP_VERSION}</span>
               </div>
               <p className="text-blue-400/90 text-xs font-medium tracking-wide uppercase">Sistema de Gestão Documental CONTÁBIL</p>
             </div>
