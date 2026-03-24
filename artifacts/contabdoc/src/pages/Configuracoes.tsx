@@ -225,7 +225,9 @@ export default function ConfiguracoesPage() {
   const handleUserSave = async () => {
     try {
       if (usrEditId) {
-        await updateUsr.mutateAsync({ id: usrEditId, data: usrForm });
+        const payload = { ...usrForm };
+        if (!payload.senha) delete (payload as any).senha;
+        await updateUsr.mutateAsync({ id: usrEditId, data: payload });
         toast({ title: "Usuário atualizado" });
       } else {
         if (!usrForm.senha) { toast({ title: "Senha obrigatória", variant: "destructive" }); return; }
