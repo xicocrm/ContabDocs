@@ -55,7 +55,15 @@ router.post("/", async (req, res) => {
         return;
       }
     }
-    if (body.senhaPortal) body.senhaPortal = await bcrypt.hash(body.senhaPortal, 10);
+    if (body.senhaPortal) {
+      body.senhaPortal = await bcrypt.hash(body.senhaPortal, 10);
+    } else if (body.ativoPortal === true || body.ativoPortal === "true") {
+      // Ativando portal na criação sem senha: usa dígitos do CNPJ/CPF como senha padrão
+      const docDigitos = String(body.cnpj || body.cpf || "").replace(/\D/g, "");
+      if (docDigitos.length >= 11) {
+        body.senhaPortal = await bcrypt.hash(docDigitos, 10);
+      }
+    }
     const rows = await db.insert(clientesTable).values(body).returning();
     const { senhaPortal: _s, ...safe } = rows[0] as any;
     res.status(201).json(safe);
@@ -73,11 +81,24 @@ router.put("/:id", async (req, res) => {
     delete body.id;
     delete body.createdAt;
     delete body.updatedAt;
+
     if (body.senhaPortal) {
       body.senhaPortal = await bcrypt.hash(body.senhaPortal, 10);
+    } else if (body.ativoPortal === true || body.ativoPortal === "true") {
+      // Ativando portal sem senha: define senha padrão = dígitos do CNPJ ou CPF
+      const [atual] = await db.select().from(clientesTable).where(eq(clientesTable.id, id)).limit(1);
+      if (atual && !atual.senhaPortal) {
+        const docDigitos = String(body.cnpj || atual.cnpj || body.cpf || atual.cpf || "").replace(/\D/g, "");
+        if (docDigitos.length >= 11) {
+          body.senhaPortal = await bcrypt.hash(docDigitos, 10);
+        }
+      } else {
+        delete body.senhaPortal;
+      }
     } else {
       delete body.senhaPortal;
     }
+
     const rows = await db.update(clientesTable)
       .set({ ...body, updatedAt: new Date() })
       .where(eq(clientesTable.id, id))

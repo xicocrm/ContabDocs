@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, clientesTable, escritoriosTable, portalArquivosTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import multer from "multer";
@@ -31,9 +31,11 @@ function verifyPortalToken(authHeader?: string): { clienteId: number; escritorio
 
 router.post("/login", async (req, res) => {
   try {
-    const { email, senha, slug } = req.body;
-    if (!email || !senha || !slug) {
-      res.status(400).json({ message: "Informe email, senha e nome do escritório" }); return;
+    const { documento, email, senha, slug } = req.body;
+    // Aceita 'documento' (novo) ou 'email' (retrocompatibilidade)
+    const identificador = documento || email;
+    if (!identificador || !senha || !slug) {
+      res.status(400).json({ message: "Informe o CNPJ/CPF, senha e escritório" }); return;
     }
 
     const [escritorio] = await db.select().from(escritoriosTable)
@@ -43,14 +45,35 @@ router.post("/login", async (req, res) => {
       res.status(404).json({ message: "Escritório não encontrado. Verifique o endereço do portal." }); return;
     }
 
-    const [cliente] = await db.select().from(clientesTable)
-      .where(and(
-        eq(clientesTable.escritorioId, escritorio.id),
-        eq(clientesTable.emailPortal, email.toLowerCase().trim())
-      )).limit(1);
+    // Tenta buscar por CNPJ/CPF (somente dígitos) ou por e-mail (retrocompat.)
+    const docLimpo = String(identificador).replace(/\D/g, "");
+    let cliente = null;
+
+    if (docLimpo.length >= 11) {
+      // Busca por CNPJ (14 dígitos) ou CPF (11 dígitos) — ignora formatação
+      const [found] = await db.select().from(clientesTable)
+        .where(and(
+          eq(clientesTable.escritorioId, escritorio.id),
+          or(
+            sql`REGEXP_REPLACE(${clientesTable.cnpj}, '[^0-9]', '', 'g') = ${docLimpo}`,
+            sql`REGEXP_REPLACE(${clientesTable.cpf}, '[^0-9]', '', 'g') = ${docLimpo}`,
+          )
+        )).limit(1);
+      cliente = found || null;
+    }
+
+    // Fallback: busca por e-mail (para clientes cadastrados antes da mudança)
+    if (!cliente && identificador.includes("@")) {
+      const [found] = await db.select().from(clientesTable)
+        .where(and(
+          eq(clientesTable.escritorioId, escritorio.id),
+          eq(clientesTable.emailPortal, identificador.toLowerCase().trim())
+        )).limit(1);
+      cliente = found || null;
+    }
 
     if (!cliente || !cliente.ativoPortal) {
-      res.status(401).json({ message: "Acesso não autorizado. Verifique suas credenciais ou contate o escritório." }); return;
+      res.status(401).json({ message: "CNPJ/CPF não encontrado ou portal inativo. Contate o escritório." }); return;
     }
 
     if (!cliente.senhaPortal) {
@@ -59,7 +82,7 @@ router.post("/login", async (req, res) => {
 
     const ok = await bcrypt.compare(senha, cliente.senhaPortal);
     if (!ok) {
-      res.status(401).json({ message: "Email ou senha incorretos" }); return;
+      res.status(401).json({ message: "CNPJ/CPF ou senha incorretos" }); return;
     }
 
     const token = jwt.sign(

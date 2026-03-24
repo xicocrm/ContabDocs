@@ -3,8 +3,20 @@ import { useLocation, useParams } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Lock, Mail, FolderOpen, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { Loader2, Lock, Building2, FolderOpen, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+function formatarDocumento(valor: string): string {
+  const d = valor.replace(/\D/g, "").slice(0, 14);
+  if (d.length <= 11) {
+    return d.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, (_,a,b,c,e) =>
+      [a, b && `.${b}`, c && `.${c}`, e && `-${e}`].filter(Boolean).join("")
+    );
+  }
+  return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, (_,a,b,c,dd,e) =>
+    [a, b && `.${b}`, c && `.${c}`, dd && `/${dd}`, e && `-${e}`].filter(Boolean).join("")
+  );
+}
 
 const getBase = () => (import.meta.env.BASE_URL || "/").replace(/\/$/, "");
 
@@ -25,7 +37,7 @@ export default function PortalLogin() {
   const [carregandoInfo, setCarregandoInfo] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [erroServidor, setErroServidor] = useState(false);
-  const [email, setEmail] = useState("");
+  const [documento, setDocumento] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
   const [enviando, setEnviando] = useState(false);
@@ -54,7 +66,7 @@ export default function PortalLogin() {
       const res = await fetch(`${getBase()}/api/portal/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), senha, slug }),
+        body: JSON.stringify({ documento: documento.trim(), senha, slug }),
       });
       const d = await res.json();
       if (!res.ok) { toast({ title: d.message || "Erro ao entrar", variant: "destructive" }); return; }
@@ -132,21 +144,25 @@ export default function PortalLogin() {
 
         <div className="bg-[#1a1d27] rounded-2xl p-8 border border-white/10 shadow-2xl">
           <h1 className="text-xl font-semibold text-white mb-2">Acessar meus documentos</h1>
-          <p className="text-gray-400 text-sm mb-6">Use o e-mail e senha fornecidos pelo seu escritório de contabilidade.</p>
+          <p className="text-gray-400 text-sm mb-6">
+            Use seu CNPJ ou CPF para entrar. A senha inicial é o CNPJ/CPF (somente números).
+          </p>
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="space-y-2">
-              <Label className="text-gray-300 text-sm">E-mail</Label>
+              <Label className="text-gray-300 text-sm">CNPJ ou CPF</Label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                 <Input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  placeholder="seu@email.com"
+                  type="text"
+                  inputMode="numeric"
+                  value={documento}
+                  onChange={e => setDocumento(formatarDocumento(e.target.value))}
+                  placeholder="00.000.000/0001-00"
                   required
                   autoFocus
-                  className="pl-10 bg-[#0f1117] border-white/10 text-white placeholder:text-gray-600 focus:border-blue-500"
+                  autoComplete="username"
+                  className="pl-10 bg-[#0f1117] border-white/10 text-white placeholder:text-gray-600 focus:border-blue-500 font-mono tracking-wide"
                 />
               </div>
             </div>
