@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { buscarCep } from "@/lib/cep";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
   useListarEscritorios,
@@ -22,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2, Plus, Search, Edit, Trash2, Building2, User, ArrowLeft,
-  CheckCircle2, AlertTriangle, Save
+  CheckCircle2, AlertTriangle, Save, MapPin
 } from "lucide-react";
 
 const emptyEscritorio = {
@@ -57,6 +58,7 @@ export default function EscritorioPage() {
   const [form, setForm] = useState<any>(emptyEscritorio);
   const [isSaving, setIsSaving] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const filtered = escritorios.filter(e =>
@@ -123,13 +125,33 @@ export default function EscritorioPage() {
       const data = await validarCpf(cpf);
       if (data.valido) {
         setForm((p: any) => ({ ...p, nomeResponsavel: data.nome || p.nomeResponsavel, situacao: data.situacao || "Regular" }));
-        toast({ title: "✓ CPF válido" });
+        toast({ title: "✓ CPF válido — preencha o nome abaixo", description: "A Receita Federal não disponibiliza nomes via API pública. Digite o nome completo manualmente." });
       } else {
         toast({ title: "CPF inválido", description: data.situacao || "Número inválido", variant: "destructive" });
       }
     } catch {
       toast({ title: "Erro ao validar CPF", variant: "destructive" });
     } finally { setIsSearching(false); }
+  };
+
+  const buscarCepEscritorio = async () => {
+    const cep = formatters.unmask(form.cep);
+    if (cep.length !== 8) { toast({ title: "CEP inválido", description: "O CEP deve ter 8 dígitos", variant: "destructive" }); return; }
+    setIsSearchingCep(true);
+    try {
+      const data = await buscarCep(cep);
+      setForm((p: any) => ({
+        ...p,
+        logradouro: data.logradouro || p.logradouro,
+        complemento: data.complemento || p.complemento,
+        bairro: data.bairro || p.bairro,
+        municipio: data.municipio || p.municipio,
+        uf: data.uf || p.uf,
+      }));
+      toast({ title: "✓ Endereço preenchido pelos Correios" });
+    } catch (e: any) {
+      toast({ title: "Erro ao buscar CEP", description: e.message || "Verifique o CEP e tente novamente.", variant: "destructive" });
+    } finally { setIsSearchingCep(false); }
   };
 
   const salvar = async () => {
@@ -262,7 +284,32 @@ export default function EscritorioPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>CEP</Label>
-                    <Input name="cep" value={form.cep} onChange={handleChange} placeholder="00000-000" className="bg-background font-mono" maxLength={9} />
+                    <div className="flex gap-2">
+                      <Input
+                        name="cep"
+                        value={form.cep}
+                        onChange={(e) => {
+                          handleChange(e);
+                          const raw = e.target.value.replace(/\D/g, "");
+                          if (raw.length === 8) {
+                            setTimeout(() => buscarCepEscritorio(), 100);
+                          }
+                        }}
+                        placeholder="00000-000"
+                        className="bg-background font-mono"
+                        maxLength={9}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={buscarCepEscritorio}
+                        disabled={isSearchingCep}
+                        title="Buscar endereço pelos Correios"
+                      >
+                        {isSearchingCep ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                      </Button>
+                    </div>
                   </div>
                   <div className="space-y-2 md:col-span-2">
                     <Label>Logradouro</Label>

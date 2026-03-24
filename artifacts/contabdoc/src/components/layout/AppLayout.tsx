@@ -10,6 +10,7 @@ import {
   Bell,
   Search
 } from "lucide-react";
+import { APP_VERSION } from "@/lib/version";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -67,11 +68,12 @@ export function AppLayout({ children, title }: AppLayoutProps) {
           <NavLinks />
         </div>
 
-        <div className="p-4 border-t border-border/50">
+        <div className="p-4 border-t border-border/50 space-y-1">
           <div className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-secondary transition-colors cursor-pointer text-muted-foreground hover:text-white">
             <LogOut className="w-5 h-5" />
             <span className="text-sm">Sair</span>
           </div>
+          <p className="text-center text-xs text-muted-foreground/50 pt-1">v{APP_VERSION}</p>
         </div>
       </aside>
 

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { buscarCep } from "@/lib/cep";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { 
   useListarClientes,
@@ -33,7 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2, Plus, Search, Edit, Trash2, Building2, User, ArrowLeft,
-  FileText, CheckCircle, AlertCircle, DollarSign, Calendar
+  FileText, CheckCircle, AlertCircle, DollarSign, Calendar, MapPin
 } from "lucide-react";
 
 const emptyCliente = {
@@ -96,6 +97,7 @@ export default function ClientesPage() {
   const [clienteForm, setClienteForm] = useState<any>(emptyCliente);
   const [isSavingCliente, setIsSavingCliente] = useState(false);
   const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
+  const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("dados");
 
@@ -174,13 +176,33 @@ export default function ClientesPage() {
       const data = await validarCpf(cpf);
       if (data.valido) {
         setClienteForm((prev: any) => ({ ...prev, situacaoReceita: data.situacao || 'Regular' }));
-        toast({ title: "✓ CPF válido" });
+        toast({ title: "✓ CPF válido — preencha o nome abaixo", description: "A Receita Federal não disponibiliza nomes via API pública. Digite o nome completo manualmente." });
       } else {
         toast({ title: "CPF inválido", description: data.situacao || "Número inválido", variant: "destructive" });
       }
     } catch {
       toast({ title: "Erro ao validar CPF", variant: "destructive" });
     }
+  };
+
+  const buscarCepCliente = async () => {
+    const cep = formatters.unmask(clienteForm.cep);
+    if (cep.length !== 8) { toast({ title: "CEP inválido", description: "O CEP deve ter 8 dígitos", variant: "destructive" }); return; }
+    setIsSearchingCep(true);
+    try {
+      const data = await buscarCep(cep);
+      setClienteForm((prev: any) => ({
+        ...prev,
+        logradouro: data.logradouro || prev.logradouro,
+        complemento: data.complemento || prev.complemento,
+        bairro: data.bairro || prev.bairro,
+        municipio: data.municipio || prev.municipio,
+        uf: data.uf || prev.uf,
+      }));
+      toast({ title: "✓ Endereço preenchido pelos Correios" });
+    } catch (e: any) {
+      toast({ title: "Erro ao buscar CEP", description: e.message || "Verifique o CEP e tente novamente.", variant: "destructive" });
+    } finally { setIsSearchingCep(false); }
   };
 
   const salvarCliente = async () => {
@@ -448,7 +470,32 @@ export default function ClientesPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label>CEP</Label>
-                        <Input name="cep" value={clienteForm.cep} onChange={handleClienteChange} placeholder="00000-000" className="bg-background font-mono" maxLength={9} />
+                        <div className="flex gap-2">
+                          <Input
+                            name="cep"
+                            value={clienteForm.cep}
+                            onChange={(e) => {
+                              handleClienteChange(e);
+                              const raw = e.target.value.replace(/\D/g, "");
+                              if (raw.length === 8) {
+                                setTimeout(() => buscarCepCliente(), 100);
+                              }
+                            }}
+                            placeholder="00000-000"
+                            className="bg-background font-mono"
+                            maxLength={9}
+                          />
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={buscarCepCliente}
+                            disabled={isSearchingCep}
+                            title="Buscar endereço pelos Correios"
+                          >
+                            {isSearchingCep ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4" />}
+                          </Button>
+                        </div>
                       </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label>Logradouro</Label>
