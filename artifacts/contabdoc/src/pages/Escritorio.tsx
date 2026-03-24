@@ -181,7 +181,7 @@ export default function EscritorioPage() {
       }
       queryClient.invalidateQueries({ queryKey: getListarEscritoriosQueryKey() });
     } catch (err: any) {
-      const msg = err?.response?.data?.message || err?.message || "Erro ao salvar";
+      const msg = err?.data?.message || err?.message || "Erro ao salvar";
       toast({ title: msg, variant: "destructive" });
     } finally { setIsSaving(false); }
   };
