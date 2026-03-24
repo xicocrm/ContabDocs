@@ -247,3 +247,28 @@ ALTER TABLE clientes ADD COLUMN IF NOT EXISTS email_portal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS senha_portal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ativo_portal BOOLEAN DEFAULT false;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha TEXT;
+
+-- Auto-gera slug para escritórios sem slug (somente se ainda estiver NULL)
+DO $$
+DECLARE
+  r RECORD;
+  base_slug TEXT;
+  final_slug TEXT;
+  counter INT;
+BEGIN
+  FOR r IN SELECT id, nome_fantasia, razao_social FROM escritorios WHERE slug IS NULL LOOP
+    base_slug := REGEXP_REPLACE(LOWER(COALESCE(r.nome_fantasia, r.razao_social, 'escritorio')), '[^a-z0-9]', '', 'g');
+    IF base_slug = '' THEN base_slug := 'escritorio'; END IF;
+    final_slug := base_slug;
+    counter := 1;
+    LOOP
+      BEGIN
+        UPDATE escritorios SET slug = final_slug WHERE id = r.id AND slug IS NULL;
+        EXIT;
+      EXCEPTION WHEN unique_violation THEN
+        final_slug := base_slug || counter::text;
+        counter := counter + 1;
+      END;
+    END LOOP;
+  END LOOP;
+END $$;
