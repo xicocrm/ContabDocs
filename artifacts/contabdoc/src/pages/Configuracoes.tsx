@@ -1,5 +1,6 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { AsaasLogo, EfiPayLogo, BancoInterLogo, MercadoPagoLogo, WavoipLogo, WhatiketLogo, FalePacoLogo } from "@/components/logos/GatewayLogos";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -34,11 +35,11 @@ type ConfigField = {
 };
 
 const INTEGRATION_LIST: {
-  id: string; name: string; type: string; icon: string; description: string;
+  id: string; name: string; type: string; icon: React.ReactNode; description: string;
   fields: ConfigField[];
 }[] = [
   {
-    id: 'asaas', name: 'Asaas', type: 'gateway', icon: '🏦',
+    id: 'asaas', name: 'Asaas', type: 'gateway', icon: <AsaasLogo />,
     description: 'Cobranças, boletos, Pix e cartão de crédito',
     fields: [
       { key: 'apiKey', label: 'API Key', placeholder: '$aact_...', type: 'password', hint: 'Encontre em Minha Conta → Integrações → API Key' },
@@ -48,7 +49,7 @@ const INTEGRATION_LIST: {
     ],
   },
   {
-    id: 'efi', name: 'Efí Pay (Gerencianet)', type: 'gateway', icon: '💳',
+    id: 'efi', name: 'Efí Pay (Gerencianet)', type: 'gateway', icon: <EfiPayLogo />,
     description: 'Pix, boletos e cobranças via API',
     fields: [
       { key: 'clientId', label: 'Client ID', placeholder: 'Client_Id_...', type: 'password' },
@@ -59,7 +60,7 @@ const INTEGRATION_LIST: {
     ],
   },
   {
-    id: 'inter', name: 'Banco Inter', type: 'gateway', icon: '🟠',
+    id: 'inter', name: 'Banco Inter', type: 'gateway', icon: <BancoInterLogo />,
     description: 'Cobrança via API Banco Inter',
     fields: [
       { key: 'clientId', label: 'Client ID', placeholder: 'UUID do app Inter', type: 'password' },
@@ -70,7 +71,7 @@ const INTEGRATION_LIST: {
     ],
   },
   {
-    id: 'mercadopago', name: 'Mercado Pago', type: 'gateway', icon: '💛',
+    id: 'mercadopago', name: 'Mercado Pago', type: 'gateway', icon: <MercadoPagoLogo />,
     description: 'Pagamentos via Pix, cartão e link de pagamento',
     fields: [
       { key: 'accessToken', label: 'Access Token', placeholder: 'APP_USR-...', type: 'password', hint: 'Encontre em mercadopago.com/developers → Credenciais' },
@@ -80,7 +81,7 @@ const INTEGRATION_LIST: {
     ],
   },
   {
-    id: 'wavoip', name: 'Wavoip', type: 'comunicacao', icon: '📞',
+    id: 'wavoip', name: 'Wavoip', type: 'comunicacao', icon: <WavoipLogo />,
     description: 'VoIP via WhatsApp',
     fields: [
       { key: 'apiToken', label: 'API Token', placeholder: 'Token Wavoip', type: 'password' },
@@ -89,7 +90,7 @@ const INTEGRATION_LIST: {
     ],
   },
   {
-    id: 'whatiket', name: 'Whatiket', type: 'comunicacao', icon: '📱',
+    id: 'whatiket', name: 'Whatiket', type: 'comunicacao', icon: <WhatiketLogo />,
     description: 'Multi-atendimento WhatsApp',
     fields: [
       { key: 'apiKey', label: 'API Key', placeholder: 'Token Whatiket', type: 'password' },
@@ -98,7 +99,7 @@ const INTEGRATION_LIST: {
     ],
   },
   {
-    id: 'falepaco', name: 'FalePaco', type: 'comunicacao', icon: '💬',
+    id: 'falepaco', name: 'FalePaco', type: 'comunicacao', icon: <FalePacoLogo />,
     description: 'Comunicação e atendimento via WhatsApp',
     fields: [
       { key: 'apiKey', label: 'API Key', placeholder: 'Chave FalePaco', type: 'password' },
@@ -148,7 +149,7 @@ function IntegrationCard({ int, integracoes, onSave }: any) {
       <CardContent className="p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{int.icon}</span>
+            <div className="w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden">{int.icon}</div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="font-bold text-foreground">{int.name}</h3>

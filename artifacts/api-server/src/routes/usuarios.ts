@@ -11,9 +11,9 @@ router.get("/", async (req, res) => {
       id: usuariosTable.id,
       nome: usuariosTable.nome,
       email: usuariosTable.email,
-      telefone: usuariosTable.telefone,
       perfil: usuariosTable.perfil,
       ativo: usuariosTable.ativo,
+      permissoes: usuariosTable.permissoes,
       createdAt: usuariosTable.createdAt,
       updatedAt: usuariosTable.updatedAt,
     }).from(usuariosTable).orderBy(usuariosTable.id);
