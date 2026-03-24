@@ -22,6 +22,7 @@ export const escritoriosTable = pgTable("escritorios", {
   uf: text("uf"),
   situacao: text("situacao"),
   slug: text("slug").unique(),
+  logoUrl: text("logo_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

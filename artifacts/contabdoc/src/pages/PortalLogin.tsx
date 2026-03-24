@@ -12,6 +12,7 @@ interface PortalEscritorio {
   nomeFantasia: string | null;
   razaoSocial: string | null;
   slug: string | null;
+  logoUrl: string | null;
 }
 
 export default function PortalLogin() {
@@ -92,13 +93,21 @@ export default function PortalLogin() {
     <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <FolderOpen className="w-6 h-6 text-white" />
-            </div>
-            <div className="text-left">
+          <div className="flex flex-col items-center gap-3 mb-4">
+            {escritorio?.logoUrl ? (
+              <img
+                src={escritorio.logoUrl}
+                alt={nomeEscritorio}
+                className="h-16 max-w-[200px] object-contain"
+              />
+            ) : (
+              <div className="w-14 h-14 bg-blue-600 rounded-xl flex items-center justify-center">
+                <FolderOpen className="w-8 h-8 text-white" />
+              </div>
+            )}
+            <div className="text-center">
               <p className="text-xs text-gray-500 uppercase tracking-wider">Portal do Cliente</p>
-              <p className="text-lg font-bold text-white leading-tight">{nomeEscritorio}</p>
+              <p className="text-xl font-bold text-white leading-tight">{nomeEscritorio}</p>
             </div>
           </div>
         </div>

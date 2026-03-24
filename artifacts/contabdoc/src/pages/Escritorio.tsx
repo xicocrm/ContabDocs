@@ -31,7 +31,7 @@ const emptyEscritorio = {
   tipo: "PJ", cnpj: "", cpf: "", razaoSocial: "", nomeFantasia: "",
   nomeResponsavel: "", email: "", telefone: "", celular: "",
   cep: "", logradouro: "", numero: "", complemento: "",
-  bairro: "", municipio: "", uf: "", situacao: "", slug: ""
+  bairro: "", municipio: "", uf: "", situacao: "", slug: "", logoUrl: ""
 };
 
 function SituacaoBadge({ situacao }: { situacao?: string | null }) {
@@ -301,6 +301,50 @@ export default function EscritorioPage() {
                       />
                     </div>
                     <p className="text-xs text-muted-foreground">Apenas letras minúsculas e números, sem espaços. Ex: cnservicos</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Logo do Escritório</Label>
+                    <div className="flex items-center gap-3">
+                      {form.logoUrl ? (
+                        <div className="relative">
+                          <img src={form.logoUrl} alt="Logo" className="h-12 max-w-[120px] object-contain rounded border border-border/50 bg-secondary/30 p-1" />
+                          <button
+                            type="button"
+                            onClick={() => setForm((p: any) => ({ ...p, logoUrl: "" }))}
+                            className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-destructive rounded-full text-white text-[10px] flex items-center justify-center hover:bg-red-600"
+                          >✕</button>
+                        </div>
+                      ) : (
+                        <div className="w-12 h-12 rounded border-2 border-dashed border-border/50 flex items-center justify-center bg-secondary/20">
+                          <Building2 className="w-5 h-5 text-muted-foreground/40" />
+                        </div>
+                      )}
+                      <div>
+                        <label className="cursor-pointer">
+                          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border/50 bg-secondary/30 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                            {form.logoUrl ? "Trocar logo" : "Enviar logo"}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 500 * 1024) {
+                                toast({ title: "Imagem muito grande", description: "Use uma imagem de até 500KB", variant: "destructive" });
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = (ev) => setForm((p: any) => ({ ...p, logoUrl: ev.target?.result as string }));
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        <p className="text-[10px] text-muted-foreground mt-1">PNG, JPG ou SVG. Máx 500KB</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

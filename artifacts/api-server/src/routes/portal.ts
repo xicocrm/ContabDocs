@@ -237,6 +237,7 @@ router.get("/info/:slug", async (req, res) => {
       nomeFantasia: escritoriosTable.nomeFantasia,
       razaoSocial: escritoriosTable.razaoSocial,
       slug: escritoriosTable.slug,
+      logoUrl: escritoriosTable.logoUrl,
     }).from(escritoriosTable).where(eq(escritoriosTable.slug, req.params.slug.toLowerCase()));
     if (!escritorio) { res.status(404).json({ message: "Portal não encontrado" }); return; }
     res.json(escritorio);

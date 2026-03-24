@@ -237,6 +237,7 @@ CREATE TABLE IF NOT EXISTS portal_arquivos (
 
 -- Colunas adicionais (idempotentes)
 ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE;
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS logo_url TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS codigo_cliente TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS email_portal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS senha_portal TEXT;

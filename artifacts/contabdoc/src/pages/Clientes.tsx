@@ -707,6 +707,13 @@ export default function ClientesPage() {
                       <p className="text-sm text-muted-foreground mt-1">Configure o slug do escritório em: <strong>Escritórios → Editar → campo "Slug do Portal"</strong></p>
                     </div>
                   )}
+
+                  <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
+                    <Button onClick={salvarCliente} disabled={isSavingCliente} className="bg-primary px-8">
+                      {isSavingCliente && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                      Salvar Acesso ao Portal
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
