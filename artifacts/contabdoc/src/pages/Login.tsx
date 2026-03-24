@@ -24,12 +24,11 @@ export default function Login() {
   const [senha, setSenha] = useState(() => lembrarSalvo() ? (localStorage.getItem("contabdoc_saved_senha") || "") : "");
   const [mostrarSenha, setMostrarSenha] = useState(() => lembrarSalvo() && !!localStorage.getItem("contabdoc_saved_senha"));
   const [enviando, setEnviando] = useState(false);
-  const [checkingSetup, setCheckingSetup] = useState(true);
   const [resetOpen, setResetOpen] = useState(false);
 
   useEffect(() => {
     if (user) { setLocation("/"); return; }
-    checkSetup().finally(() => setCheckingSetup(false));
+    checkSetup();
   }, [user]);
 
   const toggleLembrar = () => {
@@ -63,9 +62,9 @@ export default function Login() {
     }
   };
 
-  if (loading || checkingSetup) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#1a2f50] flex items-center justify-center">
+      <div className="min-h-screen bg-[#1e3c68] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
