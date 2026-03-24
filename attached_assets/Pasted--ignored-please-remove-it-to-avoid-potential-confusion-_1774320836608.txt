@@ -1,0 +1,63 @@
+ ignored, please remove it to avoid potential confusion
+[+] Building 2.0s (11/33)
+ => [internal] load local bake definitions                                                     0.0s
+ => => reading from stdin 1.34kB                                                               0.0s
+ => [migrate internal] load build definition from Dockerfile.api                               0.0s
+ => => transferring dockerfile: 1.11kB                                                         0.0s
+ => [web internal] load build definition from Dockerfile.web                                   0.0s
+ => => transferring dockerfile: 840B                                                           0.0s
+ => [migrate internal] load metadata for docker.io/library/node:20-alpine                      1.6s
+ => [web internal] load metadata for docker.io/library/nginx:alpine                            1.6s
+ => [api internal] load .dockerignore                                                          0.0s
+ => => transferring context: 207B                                                              0.0s
+ => CANCELED [web base 1/3] FROM docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596  0.3s
+ => => resolve docker.io/library/node:20-alpine@sha256:b88333c42c23fbd91596ebd7fd10de239cedab  0.1s
+ => [api internal] load build context                                                          0.1s
+ => => transferring context: 1.20MB                                                            0.1s
+ => CANCELED [web runner 1/3] FROM docker.io/library/nginx:alpine@sha256:f46cb72c7df02710e693  0.1s
+ => => resolve docker.io/library/nginx:alpine@sha256:f46cb72c7df02710e693e863a983ac42f6a95790  0.1s
+ => CACHED [api base 2/3] RUN npm install -g pnpm@9                                            0.0s
+ => CACHED [api base 3/3] WORKDIR /app                                                         0.0s
+ => ERROR [api deps 1/5] COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./               0.0s
+------
+ > [api deps 1/5] COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./:
+------
+[+] build 0/3
+ ⠙ Image deploy-web     Building                                                                2.1s
+ ⠙ Image deploy-migrate Building                                                                2.1s
+ ⠙ Image deploy-api     Building                                                                2.1s
+Dockerfile.api:6
+
+--------------------
+
+   4 |
+
+   5 |     FROM base AS deps
+
+   6 | >>> COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+   7 |     COPY artifacts/api-server/package.json ./artifacts/api-server/
+
+   8 |     COPY lib/db/package.json ./lib/db/
+
+--------------------
+
+Dockerfile.api:20
+
+--------------------
+
+  18 |     WORKDIR /app
+
+  19 |
+
+  20 | >>> COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+
+  21 |     COPY artifacts/api-server/package.json ./artifacts/api-server/
+
+  22 |     COPY lib/db/package.json ./lib/db/
+
+--------------------
+
+target migrate: failed to solve: failed to compute cache key: failed to calculate checksum of ref gc9j6e12h1d0xruhfuvcm1vqq::xbg4paarlz33d8e8w5y8vto77: "/pnpm-lock.yaml": not found
+
+root@srv1447315:~# ^C
