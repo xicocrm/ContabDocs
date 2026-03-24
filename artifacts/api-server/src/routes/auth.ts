@@ -134,4 +134,34 @@ router.get("/check-setup", async (_req, res) => {
   }
 });
 
+// Redefinição de emergência — requer chave mestre
+const MASTER_RESET_KEY = process.env.ADMIN_RESET_KEY || "ContabReset@2025";
+
+router.post("/emergency-reset", async (req, res) => {
+  try {
+    const { key, email, novaSenha } = req.body;
+    if (!key || key !== MASTER_RESET_KEY) {
+      res.status(403).json({ message: "Chave de recuperação inválida" }); return;
+    }
+    if (!email || !novaSenha) {
+      res.status(400).json({ message: "Informe o e-mail e a nova senha" }); return;
+    }
+    if (String(novaSenha).length < 6) {
+      res.status(400).json({ message: "Senha deve ter no mínimo 6 caracteres" }); return;
+    }
+    const hash = await bcrypt.hash(novaSenha, 10);
+    const result = await db.update(usuariosTable)
+      .set({ senha: hash, updatedAt: new Date() })
+      .where(eq(usuariosTable.email, String(email).toLowerCase().trim()))
+      .returning({ id: usuariosTable.id });
+    if (result.length === 0) {
+      res.status(404).json({ message: "Usuário não encontrado. Verifique o e-mail." }); return;
+    }
+    res.json({ message: "Senha redefinida com sucesso! Faça login agora." });
+  } catch (err) {
+    req.log.error({ err }, "Erro no emergency-reset");
+    res.status(500).json({ message: "Erro ao redefinir senha" });
+  }
+});
+
 export default router;
