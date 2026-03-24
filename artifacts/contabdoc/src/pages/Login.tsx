@@ -15,7 +15,10 @@ export default function Login() {
   const [email, setEmail] = useState(() => localStorage.getItem("contabdoc_saved_email") || "");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [lembrar, setLembrar] = useState(true);
+  const [lembrar, setLembrar] = useState(() => {
+    const saved = localStorage.getItem("contabdoc_lembrar");
+    return saved === null ? true : saved === "true";
+  });
   const [enviando, setEnviando] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
 
@@ -109,7 +112,7 @@ export default function Login() {
                 type="button"
                 role="checkbox"
                 aria-checked={lembrar}
-                onClick={() => setLembrar(!lembrar)}
+                onClick={() => { const v = !lembrar; setLembrar(v); localStorage.setItem("contabdoc_lembrar", String(v)); }}
                 className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:ring-offset-[#1a1d27] ${
                   lembrar ? "bg-blue-600 border-blue-600" : "bg-[#0f1117] border-white/20 hover:border-white/40"
                 }`}
@@ -121,7 +124,7 @@ export default function Login() {
                 )}
               </button>
               <span
-                onClick={() => setLembrar(!lembrar)}
+                onClick={() => { const v = !lembrar; setLembrar(v); localStorage.setItem("contabdoc_lembrar", String(v)); }}
                 className="text-sm text-gray-400 cursor-pointer select-none hover:text-gray-300 transition-colors"
               >
                 Lembrar-me neste dispositivo

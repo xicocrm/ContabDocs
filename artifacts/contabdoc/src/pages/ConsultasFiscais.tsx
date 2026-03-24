@@ -977,12 +977,12 @@ export default function ConsultasFiscaisPage() {
                     <Card className="bg-card border-border/50">
                       <CardContent className="p-4 flex items-start justify-between gap-4">
                         <div>
-                          <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <div className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                             Anexo do Simples Nacional
                             {prevResult.simplesAnexo.sujetoFatorR && (
                               <Badge className="ml-1 text-[10px] bg-yellow-500/20 text-yellow-400 border-yellow-500/30" variant="outline">Sujeito ao Fator R</Badge>
                             )}
-                          </p>
+                          </div>
                           <p className="text-2xl font-bold text-foreground">
                             Anexo <span className="text-orange-400">{prevResult.simplesAnexo.anexo}</span>
                           </p>
