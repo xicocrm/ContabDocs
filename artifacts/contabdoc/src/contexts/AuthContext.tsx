@@ -62,6 +62,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem("contabdoc_token");
     setUser(null);
+    const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+    window.location.href = base + "/login";
   }, []);
 
   return (
