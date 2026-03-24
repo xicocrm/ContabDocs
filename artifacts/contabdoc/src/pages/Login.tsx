@@ -64,7 +64,7 @@ export default function Login() {
 
   if (loading || checkingSetup) {
     return (
-      <div className="min-h-screen bg-[#111827] flex items-center justify-center">
+      <div className="min-h-screen bg-[#1a2f50] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
@@ -77,7 +77,7 @@ export default function Login() {
   return (
     <div className="min-h-screen flex">
       {/* Painel esquerdo — branding */}
-      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden flex-col items-center justify-center p-12 bg-[#111827]">
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden flex-col items-center justify-center p-12 bg-[#1a2f50]">
         {/* Decorações de fundo */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/12 via-transparent to-indigo-900/15 pointer-events-none" />
         <div className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full bg-blue-500/8 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
@@ -154,7 +154,7 @@ export default function Login() {
       </div>
 
       {/* Painel direito — formulário */}
-      <div className="w-full lg:w-[45%] bg-[#141d2e] flex flex-col items-center justify-center p-8 lg:p-12 relative">
+      <div className="w-full lg:w-[45%] bg-[#172540] flex flex-col items-center justify-center p-8 lg:p-12 relative">
         {/* Logo mobile (visível apenas em telas pequenas) */}
         <div className="lg:hidden flex items-center gap-2 mb-8">
           <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/40">
