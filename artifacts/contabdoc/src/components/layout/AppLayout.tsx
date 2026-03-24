@@ -155,7 +155,7 @@ export function AppLayout({ children, title, icon }: AppLayoutProps) {
           </div>
           <div className="flex flex-col leading-none">
             <span className="text-base font-bold tracking-tight text-white">Contab<span className="text-primary">DOC</span></span>
-            <span className="text-[9px] font-semibold text-amber-400 tracking-widest uppercase mt-0.5">v 1.0</span>
+            <span className="text-[9px] font-semibold text-amber-400 tracking-widest uppercase mt-0.5">v {APP_VERSION}</span>
           </div>
         </div>
 
@@ -208,7 +208,7 @@ export function AppLayout({ children, title, icon }: AppLayoutProps) {
                   </div>
                   <div className="flex flex-col leading-none">
                     <span className="text-base font-bold tracking-tight text-white">Contab<span className="text-primary">DOC</span></span>
-                    <span className="text-[9px] font-semibold text-amber-400 tracking-widest uppercase mt-0.5">v 1.0</span>
+                    <span className="text-[9px] font-semibold text-amber-400 tracking-widest uppercase mt-0.5">v {APP_VERSION}</span>
                   </div>
                 </div>
                 <div className="px-0 pt-3">
