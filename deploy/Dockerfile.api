@@ -2,27 +2,29 @@ FROM node:20-alpine AS base
 RUN npm install -g pnpm@9
 WORKDIR /app
 
+# Instalar dependências (camada cacheada separadamente do código)
 FROM base AS deps
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
 COPY lib/db/package.json ./lib/db/
 COPY lib/api-zod/package.json ./lib/api-zod/
-RUN pnpm install --no-frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile --ignore-scripts
 
+# Build
 FROM deps AS builder
 COPY . .
 RUN pnpm --filter @workspace/api-server run build
 
+# Runner enxuto
 FROM node:20-alpine AS runner
 RUN npm install -g pnpm@9
 WORKDIR /app
 
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
 COPY lib/db/package.json ./lib/db/
 COPY lib/api-zod/package.json ./lib/api-zod/
-
-RUN pnpm install --no-frozen-lockfile --ignore-scripts
+RUN pnpm install --frozen-lockfile --ignore-scripts --prod
 
 COPY lib/db/src ./lib/db/src
 COPY lib/db/drizzle.config.ts ./lib/db/drizzle.config.ts
