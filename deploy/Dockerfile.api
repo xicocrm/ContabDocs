@@ -8,7 +8,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
 COPY lib/db/package.json ./lib/db/
 COPY lib/api-zod/package.json ./lib/api-zod/
-RUN pnpm install --frozen-lockfile --ignore-scripts
+RUN pnpm install --no-frozen-lockfile --ignore-scripts
 
 # Build
 FROM deps AS builder
@@ -24,7 +24,7 @@ COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
 COPY lib/db/package.json ./lib/db/
 COPY lib/api-zod/package.json ./lib/api-zod/
-RUN pnpm install --frozen-lockfile --ignore-scripts --prod
+RUN pnpm install --no-frozen-lockfile --ignore-scripts --prod
 
 COPY lib/db/src ./lib/db/src
 COPY lib/db/drizzle.config.ts ./lib/db/drizzle.config.ts
