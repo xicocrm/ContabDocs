@@ -52,7 +52,7 @@ export default function PortalGerenciar() {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [clienteSelecionado, setClienteSelecionado] = useState<string>("");
+  const [clienteSelecionado, setClienteSelecionado] = useState<string>("all");
   const [showUpload, setShowUpload] = useState(false);
   const [uploadForm, setUploadForm] = useState({ nome: "", descricao: "" });
   const [fileSelecionado, setFileSelecionado] = useState<File | null>(null);
@@ -71,7 +71,7 @@ export default function PortalGerenciar() {
     queryKey: ["portal-arquivos", escritorioId, clienteSelecionado],
     queryFn: () => {
       const params = new URLSearchParams({ escritorioId: String(escritorioId) });
-      if (clienteSelecionado) params.set("clienteId", clienteSelecionado);
+      if (clienteSelecionado && clienteSelecionado !== "all") params.set("clienteId", clienteSelecionado);
       return API.get(`/portal/escritorio/arquivos?${params}`);
     },
     enabled: !!escritorioId,
@@ -92,7 +92,7 @@ export default function PortalGerenciar() {
     const fd = new FormData();
     fd.append("arquivo", fileSelecionado);
     fd.append("escritorioId", String(escritorioId));
-    if (clienteSelecionado) fd.append("clienteId", clienteSelecionado);
+    if (clienteSelecionado && clienteSelecionado !== "all") fd.append("clienteId", clienteSelecionado);
     fd.append("nome", uploadForm.nome || fileSelecionado.name);
     fd.append("descricao", uploadForm.descricao);
     try {
@@ -182,7 +182,7 @@ export default function PortalGerenciar() {
               <SelectValue placeholder="Todos os clientes" />
             </SelectTrigger>
             <SelectContent className="bg-[#1a1d27] border-white/10">
-              <SelectItem value="">Todos os clientes</SelectItem>
+              <SelectItem value="all">Todos os clientes</SelectItem>
               {clientes.map(c => (
                 <SelectItem key={c.id} value={String(c.id)}>
                   {c.razaoSocial || c.nomeResponsavel}
@@ -277,7 +277,7 @@ export default function PortalGerenciar() {
                   <SelectValue placeholder="Todos os clientes" />
                 </SelectTrigger>
                 <SelectContent className="bg-[#1a1d27] border-white/10">
-                  <SelectItem value="">Todos os clientes</SelectItem>
+                  <SelectItem value="all">Todos os clientes</SelectItem>
                   {clientes.map(c => (
                     <SelectItem key={c.id} value={String(c.id)}>
                       {c.razaoSocial || c.nomeResponsavel}
