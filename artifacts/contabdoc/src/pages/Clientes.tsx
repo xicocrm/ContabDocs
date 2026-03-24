@@ -5,9 +5,16 @@ import {
   useCriarCliente, 
   useAtualizarCliente, 
   useExcluirCliente,
+  useListarContratos,
+  useCriarContrato,
+  useAtualizarContrato,
+  useExcluirContrato,
   consultarCnpj,
   validarCpf,
-  Cliente
+  getListarClientesQueryKey,
+  getListarContratosQueryKey,
+  Cliente,
+  Contrato,
 } from "@workspace/api-client-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,128 +24,600 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { formatters } from "@/lib/formatters";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Search, Edit, Trash2, CheckCircle2, AlertTriangle, Building2, User } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { getListarClientesQueryKey } from "@workspace/api-client-react";
+import {
+  Loader2, Plus, Search, Edit, Trash2, Building2, User, ArrowLeft,
+  FileText, CheckCircle, AlertCircle, DollarSign, Calendar
+} from "lucide-react";
 
-const initialForm = {
-  tipo: 'PJ', cnpj: '', cpf: '', razaoSocial: '', nomeFantasia: '', nomeResponsavel: '', 
-  email: '', telefone: '', celular: '', cep: '', logradouro: '', numero: '', complemento: '', 
+const emptyCliente = {
+  tipo: 'PJ', cnpj: '', cpf: '', razaoSocial: '', nomeFantasia: '', nomeResponsavel: '',
+  email: '', telefone: '', celular: '', cep: '', logradouro: '', numero: '', complemento: '',
   bairro: '', municipio: '', uf: '', situacaoReceita: '', socios: '', regimeTributario: '', atividadePrincipal: ''
 };
+
+const emptyContrato = {
+  clienteId: 0, numeroContrato: '', valorContrato: '', dataContrato: '',
+  diaVencimento: 5, dataVencimento: '', objeto: '', status: 'ativo', observacoes: ''
+};
+
+function SituacaoBadge({ situacao }: { situacao?: string | null }) {
+  if (!situacao) return <span className="text-muted-foreground text-xs">—</span>;
+  const isAtiva = situacao.toUpperCase().includes('ATIVA') || situacao.toUpperCase().includes('REGULAR');
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${isAtiva ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+      {isAtiva ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+      {situacao}
+    </span>
+  );
+}
+
+function StatusContratoBadge({ status }: { status?: string | null }) {
+  const map: Record<string, string> = {
+    'ativo': 'bg-green-500/10 text-green-400 border-green-500/20',
+    'inativo': 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+    'vencido': 'bg-red-500/10 text-red-400 border-red-500/20',
+    'cancelado': 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+  };
+  const key = status || 'inativo';
+  return (
+    <span className={`px-2.5 py-0.5 rounded-md text-xs font-semibold border uppercase ${map[key] || map['inativo']}`}>
+      {status || 'inativo'}
+    </span>
+  );
+}
 
 export default function ClientesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
   const { data: clientes = [], isLoading } = useListarClientes();
-  const createMutation = useCriarCliente();
-  const updateMutation = useAtualizarCliente();
-  const deleteMutation = useExcluirCliente();
+  const criarCliente = useCriarCliente();
+  const atualizarCliente = useAtualizarCliente();
+  const excluirCliente = useExcluirCliente();
 
-  const [isOpen, setIsOpen] = useState(false);
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [formData, setFormData] = useState<any>(initialForm);
-  const [isSearching, setIsSearching] = useState(false);
+  const criarContrato = useCriarContrato();
+  const atualizarContrato = useAtualizarContrato();
+  const excluirContrato = useExcluirContrato();
+
+  const [view, setView] = useState<'list' | 'detail'>('list');
+  const [clienteId, setClienteId] = useState<number | null>(null);
+  const [clienteForm, setClienteForm] = useState<any>(emptyCliente);
+  const [isSavingCliente, setIsSavingCliente] = useState(false);
+  const [isSearchingCnpj, setIsSearchingCnpj] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState("dados");
 
-  const filteredClientes = clientes.filter(c => 
-    c.razaoSocial?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.nomeFantasia?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.cnpj?.includes(searchTerm) || c.cpf?.includes(searchTerm)
+  const [isContratoOpen, setIsContratoOpen] = useState(false);
+  const [contratoId, setContratoId] = useState<number | null>(null);
+  const [contratoForm, setContratoForm] = useState<any>(emptyContrato);
+
+  const { data: contratos = [] } = useListarContratos(
+    clienteId ? { clienteId } : undefined
+  );
+
+  const filteredClientes = clientes.filter(c =>
+    (c.razaoSocial || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.nomeFantasia || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (c.cnpj || '').includes(searchTerm) ||
+    (c.cpf || '').includes(searchTerm)
   );
 
   const openNew = () => {
-    setFormData(initialForm);
-    setEditingId(null);
-    setIsOpen(true);
+    setClienteForm(emptyCliente);
+    setClienteId(null);
+    setActiveTab("dados");
+    setView('detail');
   };
 
-  const openEdit = (client: Cliente) => {
-    setFormData({ ...initialForm, ...client });
-    setEditingId(client.id);
-    setIsOpen(true);
+  const openEdit = (c: Cliente) => {
+    setClienteForm({ ...emptyCliente, ...c });
+    setClienteId(c.id);
+    setActiveTab("dados");
+    setView('detail');
   };
 
-  const handleDelete = async (id: number) => {
-    if(confirm("Tem certeza que deseja excluir este cliente?")) {
-      try {
-        await deleteMutation.mutateAsync({ id });
-        queryClient.invalidateQueries({ queryKey: getListarClientesQueryKey() });
-        toast({ title: "Excluído com sucesso" });
-      } catch (e) {
-        toast({ title: "Erro", variant: "destructive" });
-      }
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleClienteChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    let formattedValue = value;
-    if (name === 'cnpj') formattedValue = formatters.cnpj(value);
-    if (name === 'cpf') formattedValue = formatters.cpf(value);
-    if (name === 'telefone' || name === 'celular') formattedValue = formatters.phone(value);
-    if (name === 'cep') formattedValue = formatters.cep(value);
-    setFormData((prev: any) => ({ ...prev, [name]: formattedValue }));
+    let v = value;
+    if (name === 'cnpj') v = formatters.cnpj(value);
+    if (name === 'cpf') v = formatters.cpf(value);
+    if (name === 'telefone' || name === 'celular') v = formatters.phone(value);
+    if (name === 'cep') v = formatters.cep(value);
+    setClienteForm((prev: any) => ({ ...prev, [name]: v }));
   };
 
-  const handleSearchCnpj = async () => {
-    const unmasked = formatters.unmask(formData.cnpj);
-    if (unmasked.length !== 14) return toast({ title: "CNPJ Inválido", variant: "destructive" });
-    setIsSearching(true);
+  const buscarCnpj = async () => {
+    const cnpj = formatters.unmask(clienteForm.cnpj);
+    if (cnpj.length !== 14) { toast({ title: "CNPJ inválido", variant: "destructive" }); return; }
+    setIsSearchingCnpj(true);
     try {
-      const data = await consultarCnpj(unmasked);
-      setFormData((prev: any) => ({
+      const data = await consultarCnpj(cnpj);
+      setClienteForm((prev: any) => ({
         ...prev,
         razaoSocial: data.razaoSocial || prev.razaoSocial,
         nomeFantasia: data.nomeFantasia || prev.nomeFantasia,
-        cep: formatters.cep(data.cep || prev.cep),
+        cep: formatters.cep(data.cep || ''),
         logradouro: data.logradouro || prev.logradouro,
         numero: data.numero || prev.numero,
         complemento: data.complemento || prev.complemento,
         bairro: data.bairro || prev.bairro,
         municipio: data.municipio || prev.municipio,
         uf: data.uf || prev.uf,
-        telefone: formatters.phone(data.telefone || prev.telefone),
+        telefone: formatters.phone(data.telefone || ''),
         email: data.email || prev.email,
         situacaoReceita: data.situacao || prev.situacaoReceita,
         atividadePrincipal: data.atividadePrincipal || prev.atividadePrincipal,
-        socios: data.socios ? data.socios.map((s:any) => `${s.nome} (${s.qualificacao})`).join(', ') : prev.socios
+        socios: data.socios ? data.socios.map((s: any) => `${s.nome} (${s.qualificacao})`).join(' | ') : prev.socios,
       }));
-      toast({ title: "Dados importados da Receita" });
+      toast({ title: "✓ Dados importados da Receita Federal" });
     } catch {
-      toast({ title: "Erro ao buscar CNPJ", variant: "destructive" });
-    } finally { setIsSearching(false); }
+      toast({ title: "Erro ao consultar CNPJ", description: "Verifique o número e tente novamente.", variant: "destructive" });
+    } finally { setIsSearchingCnpj(false); }
   };
 
-  const handleSave = async () => {
+  const validarCPF = async () => {
+    const cpf = formatters.unmask(clienteForm.cpf);
+    if (cpf.length !== 11) { toast({ title: "CPF inválido", variant: "destructive" }); return; }
     try {
-      if (editingId) {
-        await updateMutation.mutateAsync({ id: editingId, data: formData });
-        toast({ title: "Cliente atualizado!" });
+      const data = await validarCpf(cpf);
+      if (data.valido) {
+        setClienteForm((prev: any) => ({ ...prev, situacaoReceita: data.situacao || 'Regular' }));
+        toast({ title: "✓ CPF válido" });
       } else {
-        await createMutation.mutateAsync({ data: formData });
-        toast({ title: "Cliente cadastrado!" });
+        toast({ title: "CPF inválido", description: data.situacao || "Número inválido", variant: "destructive" });
       }
-      queryClient.invalidateQueries({ queryKey: getListarClientesQueryKey() });
-      setIsOpen(false);
     } catch {
-      toast({ title: "Erro ao salvar", variant: "destructive" });
+      toast({ title: "Erro ao validar CPF", variant: "destructive" });
     }
   };
 
+  const salvarCliente = async () => {
+    if (!clienteForm.razaoSocial && !clienteForm.nomeResponsavel) {
+      toast({ title: "Preencha o nome / razão social", variant: "destructive" }); return;
+    }
+    setIsSavingCliente(true);
+    try {
+      if (clienteId) {
+        await atualizarCliente.mutateAsync({ id: clienteId, data: clienteForm });
+        toast({ title: "✓ Cliente atualizado!" });
+      } else {
+        const novo = await criarCliente.mutateAsync({ data: clienteForm });
+        setClienteId(novo.id);
+        toast({ title: "✓ Cliente cadastrado! Agora você pode adicionar contratos." });
+        setActiveTab("juridico");
+      }
+      queryClient.invalidateQueries({ queryKey: getListarClientesQueryKey() });
+    } catch {
+      toast({ title: "Erro ao salvar cliente", variant: "destructive" });
+    } finally { setIsSavingCliente(false); }
+  };
+
+  const excluirClienteHandler = async (id: number) => {
+    if (!confirm("Deseja excluir este cliente e todos os seus contratos?")) return;
+    try {
+      await excluirCliente.mutateAsync({ id });
+      queryClient.invalidateQueries({ queryKey: getListarClientesQueryKey() });
+      toast({ title: "✓ Cliente excluído" });
+    } catch { toast({ title: "Erro ao excluir", variant: "destructive" }); }
+  };
+
+  const openNovoContrato = () => {
+    if (!clienteId) { toast({ title: "Salve o cliente primeiro", variant: "destructive" }); return; }
+    setContratoForm({ ...emptyContrato, clienteId });
+    setContratoId(null);
+    setIsContratoOpen(true);
+  };
+
+  const openEditContrato = (c: Contrato) => {
+    setContratoForm({ ...emptyContrato, ...c });
+    setContratoId(c.id);
+    setIsContratoOpen(true);
+  };
+
+  const handleContratoChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    let v: string | number = value;
+    if (name === 'valorContrato') v = formatters.currency(value);
+    if (name === 'dataContrato' || name === 'dataVencimento') v = formatters.date(value);
+    if (name === 'diaVencimento') v = parseInt(value.replace(/\D/g, '') || '1');
+    setContratoForm((prev: any) => ({ ...prev, [name]: v }));
+  };
+
+  const salvarContrato = async () => {
+    if (!contratoForm.numeroContrato) { toast({ title: "Informe o número do contrato", variant: "destructive" }); return; }
+    try {
+      const payload = { ...contratoForm, clienteId: clienteId! };
+      if (contratoId) {
+        await atualizarContrato.mutateAsync({ id: contratoId, data: payload });
+        toast({ title: "✓ Contrato atualizado!" });
+      } else {
+        await criarContrato.mutateAsync({ data: payload });
+        toast({ title: "✓ Contrato cadastrado!" });
+      }
+      queryClient.invalidateQueries({ queryKey: getListarContratosQueryKey({ clienteId: clienteId! }) });
+      setIsContratoOpen(false);
+    } catch { toast({ title: "Erro ao salvar contrato", variant: "destructive" }); }
+  };
+
+  const excluirContratoHandler = async (id: number) => {
+    if (!confirm("Deseja excluir este contrato?")) return;
+    try {
+      await excluirContrato.mutateAsync({ id });
+      queryClient.invalidateQueries({ queryKey: getListarContratosQueryKey({ clienteId: clienteId! }) });
+      toast({ title: "✓ Contrato excluído" });
+    } catch { toast({ title: "Erro ao excluir", variant: "destructive" }); }
+  };
+
+  if (view === 'detail') {
+    const currentCliente = clientes.find(c => c.id === clienteId);
+    return (
+      <AppLayout title={clienteId ? (currentCliente?.nomeFantasia || currentCliente?.razaoSocial || 'Editar Cliente') : 'Novo Cliente'}>
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => setView('list')} className="text-muted-foreground hover:text-white">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para lista
+            </Button>
+            {clienteId && currentCliente?.situacaoReceita && (
+              <SituacaoBadge situacao={currentCliente.situacaoReceita} />
+            )}
+          </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="bg-secondary/50 border border-border/50">
+              <TabsTrigger value="dados" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">
+                <User className="w-4 h-4 mr-2" /> Dados Cadastrais
+              </TabsTrigger>
+              <TabsTrigger value="juridico" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6" disabled={!clienteId}>
+                <FileText className="w-4 h-4 mr-2" /> Jurídico
+                {contratos.length > 0 && (
+                  <Badge className="ml-2 bg-primary/20 text-primary text-xs h-5 px-1.5">{contratos.length}</Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            {/* ── DADOS CADASTRAIS ── */}
+            <TabsContent value="dados" className="mt-6">
+              <Card className="bg-card border-border/50">
+                <CardContent className="pt-6 space-y-6">
+                  {/* Tipo e Regime */}
+                  <div className="flex flex-col sm:flex-row gap-6 p-4 rounded-xl bg-secondary/30 border border-border/50">
+                    <div>
+                      <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-3 block">Tipo de Inscrição</Label>
+                      <RadioGroup
+                        value={clienteForm.tipo}
+                        onValueChange={(v) => setClienteForm((p: any) => ({ ...p, tipo: v }))}
+                        className="flex gap-6"
+                      >
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="PJ" id="tipo-pj" />
+                          <Label htmlFor="tipo-pj" className="cursor-pointer">
+                            <Building2 className="w-4 h-4 inline mr-1 text-primary" /> Pessoa Jurídica (CNPJ)
+                          </Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="PF" id="tipo-pf" />
+                          <Label htmlFor="tipo-pf" className="cursor-pointer">
+                            <User className="w-4 h-4 inline mr-1 text-primary" /> Pessoa Física (CPF)
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    <div className="sm:ml-auto min-w-[220px]">
+                      <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-3 block">Regime Tributário</Label>
+                      <Select value={clienteForm.regimeTributario} onValueChange={(v) => setClienteForm((p: any) => ({ ...p, regimeTributario: v }))}>
+                        <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Simples Nacional">Simples Nacional</SelectItem>
+                          <SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem>
+                          <SelectItem value="Lucro Real">Lucro Real</SelectItem>
+                          <SelectItem value="MEI">MEI</SelectItem>
+                          <SelectItem value="Autônomo / PF">Autônomo / PF</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Documento + busca */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {clienteForm.tipo === 'PJ' ? (
+                      <div className="space-y-2">
+                        <Label>CNPJ</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            name="cnpj"
+                            value={clienteForm.cnpj}
+                            onChange={handleClienteChange}
+                            placeholder="00.000.000/0000-00"
+                            className="bg-background font-mono"
+                            maxLength={18}
+                          />
+                          <Button onClick={buscarCnpj} disabled={isSearchingCnpj} variant="secondary" className="shrink-0">
+                            {isSearchingCnpj ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <Label>CPF</Label>
+                        <div className="flex gap-2">
+                          <Input
+                            name="cpf"
+                            value={clienteForm.cpf}
+                            onChange={handleClienteChange}
+                            placeholder="000.000.000-00"
+                            className="bg-background font-mono"
+                            maxLength={14}
+                          />
+                          <Button onClick={validarCPF} variant="secondary" className="shrink-0">
+                            <CheckCircle className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label>Situação na Receita Federal</Label>
+                      <Input
+                        name="situacaoReceita"
+                        value={clienteForm.situacaoReceita}
+                        readOnly
+                        className="bg-secondary/50 cursor-default font-semibold"
+                        placeholder="Busque pelo CNPJ/CPF para preencher"
+                      />
+                    </div>
+
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>{clienteForm.tipo === 'PJ' ? 'Razão Social' : 'Nome Completo'}</Label>
+                      <Input name="razaoSocial" value={clienteForm.razaoSocial} onChange={handleClienteChange} className="bg-background" />
+                    </div>
+
+                    {clienteForm.tipo === 'PJ' && (
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Nome Fantasia</Label>
+                        <Input name="nomeFantasia" value={clienteForm.nomeFantasia} onChange={handleClienteChange} className="bg-background" />
+                      </div>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label>Nome do Responsável</Label>
+                      <Input name="nomeResponsavel" value={clienteForm.nomeResponsavel} onChange={handleClienteChange} className="bg-background" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>E-mail</Label>
+                      <Input name="email" value={clienteForm.email} onChange={handleClienteChange} type="email" className="bg-background" />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Telefone</Label>
+                      <Input name="telefone" value={clienteForm.telefone} onChange={handleClienteChange} placeholder="(00) 0000-0000" className="bg-background" maxLength={14} />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label>Celular</Label>
+                      <Input name="celular" value={clienteForm.celular} onChange={handleClienteChange} placeholder="(00) 00000-0000" className="bg-background" maxLength={15} />
+                    </div>
+
+                    {clienteForm.tipo === 'PJ' && (
+                      <>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>Atividade Principal (CNAE)</Label>
+                          <Input name="atividadePrincipal" value={clienteForm.atividadePrincipal} onChange={handleClienteChange} className="bg-background" />
+                        </div>
+                        <div className="space-y-2 md:col-span-2">
+                          <Label>Quadro de Sócios</Label>
+                          <Input name="socios" value={clienteForm.socios} onChange={handleClienteChange} className="bg-background text-sm" />
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Endereço */}
+                  <div className="pt-4 border-t border-border/50">
+                    <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-4 block">Endereço</Label>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label>CEP</Label>
+                        <Input name="cep" value={clienteForm.cep} onChange={handleClienteChange} placeholder="00000-000" className="bg-background font-mono" maxLength={9} />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Logradouro</Label>
+                        <Input name="logradouro" value={clienteForm.logradouro} onChange={handleClienteChange} className="bg-background" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Número</Label>
+                        <Input name="numero" value={clienteForm.numero} onChange={handleClienteChange} className="bg-background" />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Complemento</Label>
+                        <Input name="complemento" value={clienteForm.complemento} onChange={handleClienteChange} className="bg-background" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Bairro</Label>
+                        <Input name="bairro" value={clienteForm.bairro} onChange={handleClienteChange} className="bg-background" />
+                      </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label>Município</Label>
+                        <Input name="municipio" value={clienteForm.municipio} onChange={handleClienteChange} className="bg-background" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>UF</Label>
+                        <Input name="uf" value={clienteForm.uf} onChange={handleClienteChange} className="bg-background uppercase" maxLength={2} />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
+                    <Button variant="ghost" onClick={() => setView('list')}>Cancelar</Button>
+                    <Button onClick={salvarCliente} disabled={isSavingCliente} className="bg-primary px-8">
+                      {isSavingCliente && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                      {clienteId ? 'Salvar Alterações' : 'Cadastrar Cliente'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* ── JURÍDICO ── */}
+            <TabsContent value="juridico" className="mt-6">
+              <Card className="bg-card border-border/50">
+                <CardContent className="pt-6 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <h3 className="font-semibold text-white">Contratos</h3>
+                      <p className="text-sm text-muted-foreground">Contratos vinculados a este cliente</p>
+                    </div>
+                    <Button onClick={openNovoContrato} className="bg-gradient-to-r from-primary to-indigo-600">
+                      <Plus className="w-4 h-4 mr-2" /> Novo Contrato
+                    </Button>
+                  </div>
+
+                  {contratos.length === 0 ? (
+                    <div className="text-center py-16 text-muted-foreground">
+                      <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p>Nenhum contrato cadastrado para este cliente.</p>
+                      <Button onClick={openNovoContrato} variant="link" className="text-primary mt-2">
+                        + Adicionar primeiro contrato
+                      </Button>
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader className="bg-secondary/50">
+                        <TableRow className="border-border/50 hover:bg-transparent">
+                          <TableHead>Nº Contrato</TableHead>
+                          <TableHead>Objeto</TableHead>
+                          <TableHead>Valor</TableHead>
+                          <TableHead>Data</TableHead>
+                          <TableHead>Vencimento</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {contratos.map((c) => (
+                          <TableRow key={c.id} className="border-border/50 group hover:bg-secondary/30">
+                            <TableCell className="font-mono font-semibold text-primary">#{c.numeroContrato}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{c.objeto || '—'}</TableCell>
+                            <TableCell className="font-medium">{c.valorContrato || '—'}</TableCell>
+                            <TableCell className="text-sm">{c.dataContrato || '—'}</TableCell>
+                            <TableCell className="text-sm">
+                              {c.dataVencimento || (c.diaVencimento ? `Todo dia ${c.diaVencimento}` : '—')}
+                            </TableCell>
+                            <TableCell><StatusContratoBadge status={c.status} /></TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" onClick={() => openEditContrato(c)} className="h-8 w-8 hover:text-primary">
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => excluirContratoHandler(c.id)} className="h-8 w-8 hover:text-destructive">
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </div>
+
+        {/* ── Dialog Contrato ── */}
+        <Dialog open={isContratoOpen} onOpenChange={setIsContratoOpen}>
+          <DialogContent className="max-w-2xl bg-card border-border/50">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                {contratoId ? 'Editar Contrato' : 'Novo Contrato'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 mt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Número do Contrato <span className="text-destructive">*</span></Label>
+                  <Input name="numeroContrato" value={contratoForm.numeroContrato} onChange={handleContratoChange} className="bg-background font-mono" placeholder="001/2024" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Status</Label>
+                  <Select value={contratoForm.status} onValueChange={(v) => setContratoForm((p: any) => ({ ...p, status: v }))}>
+                    <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ativo">Ativo</SelectItem>
+                      <SelectItem value="inativo">Inativo</SelectItem>
+                      <SelectItem value="vencido">Vencido</SelectItem>
+                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Valor do Contrato</Label>
+                  <div className="relative">
+                    <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input name="valorContrato" value={contratoForm.valorContrato} onChange={handleContratoChange} className="bg-background pl-9" placeholder="R$ 0,00" />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Data do Contrato</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input name="dataContrato" value={contratoForm.dataContrato} onChange={handleContratoChange} className="bg-background pl-9" placeholder="DD/MM/AAAA" maxLength={10} />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>Dia de Vencimento (1–31)</Label>
+                  <Input type="number" min={1} max={31} name="diaVencimento" value={contratoForm.diaVencimento} onChange={handleContratoChange} className="bg-background" placeholder="5" />
+                </div>
+                <div className="space-y-2">
+                  <Label>Data de Término</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input name="dataVencimento" value={contratoForm.dataVencimento} onChange={handleContratoChange} className="bg-background pl-9" placeholder="DD/MM/AAAA" maxLength={10} />
+                  </div>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Objeto do Contrato</Label>
+                  <Input name="objeto" value={contratoForm.objeto} onChange={handleContratoChange} className="bg-background" placeholder="Ex: Prestação de serviços contábeis mensais" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Observações</Label>
+                  <Textarea name="observacoes" value={contratoForm.observacoes} onChange={handleContratoChange} className="bg-background resize-none" rows={3} />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="ghost" onClick={() => setIsContratoOpen(false)}>Cancelar</Button>
+                <Button onClick={salvarContrato} disabled={criarContrato.isPending || atualizarContrato.isPending} className="bg-primary px-8">
+                  {(criarContrato.isPending || atualizarContrato.isPending) && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+                  Salvar Contrato
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </AppLayout>
+    );
+  }
+
+  // ── LIST VIEW ──
   return (
-    <AppLayout title="Gestão de Clientes">
+    <AppLayout title="Clientes">
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="relative w-full sm:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar cliente por nome, CNPJ ou CPF..." 
+            <Input
+              placeholder="Buscar por nome, CNPJ ou CPF..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-card border-border/50 shadow-sm"
+              className="pl-9 bg-card border-border/50"
             />
           </div>
           <Button onClick={openNew} className="w-full sm:w-auto bg-gradient-to-r from-primary to-indigo-600 shadow-lg shadow-primary/20">
@@ -146,14 +625,14 @@ export default function ClientesPage() {
           </Button>
         </div>
 
-        <Card className="bg-card border-border/50 shadow-xl shadow-black/5 overflow-hidden">
+        <Card className="bg-card border-border/50 overflow-hidden">
           {isLoading ? (
             <div className="p-12 flex justify-center"><Loader2 className="w-8 h-8 animate-spin text-primary" /></div>
           ) : (
             <Table>
               <TableHeader className="bg-secondary/50">
                 <TableRow className="border-border/50 hover:bg-transparent">
-                  <TableHead className="w-[80px]">Tipo</TableHead>
+                  <TableHead className="w-10">Tipo</TableHead>
                   <TableHead>Nome / Razão Social</TableHead>
                   <TableHead>Documento</TableHead>
                   <TableHead>Regime</TableHead>
@@ -163,30 +642,36 @@ export default function ClientesPage() {
               </TableHeader>
               <TableBody>
                 {filteredClientes.length === 0 ? (
-                  <TableRow><TableCell colSpan={6} className="text-center py-12 text-muted-foreground">Nenhum cliente encontrado.</TableCell></TableRow>
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
+                      <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                      Nenhum cliente encontrado. <button onClick={openNew} className="text-primary underline ml-1">Cadastrar agora</button>
+                    </TableCell>
+                  </TableRow>
                 ) : filteredClientes.map((c) => (
-                  <TableRow key={c.id} className="border-border/50 group hover:bg-secondary/30">
+                  <TableRow key={c.id} className="border-border/50 group hover:bg-secondary/30 cursor-pointer" onClick={() => openEdit(c)}>
                     <TableCell>
                       <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
                         {c.tipo === 'PJ' ? <Building2 className="w-4 h-4" /> : <User className="w-4 h-4" />}
                       </div>
                     </TableCell>
-                    <TableCell className="font-medium">{c.nomeFantasia || c.razaoSocial}</TableCell>
-                    <TableCell className="font-mono text-sm">{c.tipo === 'PJ' ? c.cnpj : c.cpf}</TableCell>
-                    <TableCell><span className="text-xs px-2 py-1 rounded bg-secondary/80 text-muted-foreground">{c.regimeTributario || 'Não def.'}</span></TableCell>
                     <TableCell>
-                      {c.situacaoReceita ? (
-                        <div className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${c.situacaoReceita === 'ATIVA' || c.situacaoReceita === 'Regular' ? 'bg-success/10 text-success' : 'bg-destructive/10 text-destructive'}`}>
-                          {c.situacaoReceita}
-                        </div>
-                      ) : '-'}
+                      <div>
+                        <p className="font-medium text-foreground">{c.nomeFantasia || c.razaoSocial || '—'}</p>
+                        {c.nomeFantasia && c.razaoSocial && <p className="text-xs text-muted-foreground">{c.razaoSocial}</p>}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(c)} className="h-8 w-8 hover:text-primary">
+                    <TableCell className="font-mono text-sm">{c.tipo === 'PJ' ? c.cnpj : c.cpf}</TableCell>
+                    <TableCell>
+                      <span className="text-xs px-2 py-1 rounded bg-secondary/80 text-muted-foreground">{c.regimeTributario || '—'}</span>
+                    </TableCell>
+                    <TableCell><SituacaoBadge situacao={c.situacaoReceita} /></TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); openEdit(c); }} className="h-8 w-8 hover:text-primary">
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id)} className="h-8 w-8 hover:text-destructive hover:bg-destructive/10">
+                        <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); excluirClienteHandler(c.id); }} className="h-8 w-8 hover:text-destructive">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -197,95 +682,8 @@ export default function ClientesPage() {
             </Table>
           )}
         </Card>
-
-        {/* Dialog Add/Edit */}
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-          <DialogContent className="max-w-4xl bg-card border-border/50 max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-display">{editingId ? 'Editar Cliente' : 'Novo Cliente'}</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-6 mt-4">
-              <div className="p-4 rounded-xl bg-secondary/30 border border-border/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <Label className="text-muted-foreground mb-2 block">Tipo de Inscrição</Label>
-                  <RadioGroup value={formData.tipo} onValueChange={(v) => setFormData({...formData, tipo: v})} className="flex space-x-4">
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="PJ" id="pj-client" /><Label htmlFor="pj-client">PJ (CNPJ)</Label></div>
-                    <div className="flex items-center space-x-2"><RadioGroupItem value="PF" id="pf-client" /><Label htmlFor="pf-client">PF (CPF)</Label></div>
-                  </RadioGroup>
-                </div>
-                
-                <div className="w-full sm:w-1/3">
-                  <Label className="text-muted-foreground mb-2 block">Regime Tributário</Label>
-                  <Select value={formData.regimeTributario} onValueChange={(v) => setFormData({...formData, regimeTributario: v})}>
-                    <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Simples Nacional">Simples Nacional</SelectItem>
-                      <SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem>
-                      <SelectItem value="Lucro Real">Lucro Real</SelectItem>
-                      <SelectItem value="MEI">MEI</SelectItem>
-                      <SelectItem value="Autônomo">Autônomo / PF</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {formData.tipo === 'PJ' ? (
-                  <div className="space-y-2">
-                    <Label>CNPJ</Label>
-                    <div className="flex space-x-2">
-                      <Input name="cnpj" value={formData.cnpj} onChange={handleChange} className="bg-background" />
-                      <Button onClick={handleSearchCnpj} disabled={isSearching} variant="secondary">
-                        {isSearching ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <Label>CPF</Label>
-                    <Input name="cpf" value={formData.cpf} onChange={handleChange} className="bg-background" />
-                  </div>
-                )}
-                
-                <div className="space-y-2"><Label>Situação Receita</Label><Input name="situacaoReceita" value={formData.situacaoReceita} readOnly className="bg-secondary/50 font-semibold" /></div>
-                <div className="space-y-2 md:col-span-2"><Label>Razão Social / Nome Completo</Label><Input name="razaoSocial" value={formData.razaoSocial} onChange={handleChange} className="bg-background" /></div>
-                {formData.tipo === 'PJ' && <div className="space-y-2 md:col-span-2"><Label>Nome Fantasia</Label><Input name="nomeFantasia" value={formData.nomeFantasia} onChange={handleChange} className="bg-background" /></div>}
-                
-                <div className="space-y-2"><Label>Telefone</Label><Input name="telefone" value={formData.telefone} onChange={handleChange} className="bg-background" /></div>
-                <div className="space-y-2"><Label>Celular</Label><Input name="celular" value={formData.celular} onChange={handleChange} className="bg-background" /></div>
-                <div className="space-y-2 md:col-span-2"><Label>E-mail</Label><Input name="email" value={formData.email} onChange={handleChange} className="bg-background" /></div>
-                
-                {formData.tipo === 'PJ' && (
-                  <>
-                    <div className="space-y-2 md:col-span-2"><Label>Atividade Principal</Label><Input name="atividadePrincipal" value={formData.atividadePrincipal} onChange={handleChange} className="bg-background" /></div>
-                    <div className="space-y-2 md:col-span-2"><Label>Quadro de Sócios</Label><Input name="socios" value={formData.socios} onChange={handleChange} className="bg-background" /></div>
-                  </>
-                )}
-              </div>
-
-              <div className="pt-4 border-t border-border/50">
-                <h4 className="font-semibold mb-4 text-sm text-muted-foreground uppercase tracking-wider">Endereço</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2"><Label>CEP</Label><Input name="cep" value={formData.cep} onChange={handleChange} className="bg-background" /></div>
-                  <div className="space-y-2 md:col-span-2"><Label>Logradouro</Label><Input name="logradouro" value={formData.logradouro} onChange={handleChange} className="bg-background" /></div>
-                  <div className="space-y-2"><Label>Número</Label><Input name="numero" value={formData.numero} onChange={handleChange} className="bg-background" /></div>
-                  <div className="space-y-2 md:col-span-2"><Label>Bairro</Label><Input name="bairro" value={formData.bairro} onChange={handleChange} className="bg-background" /></div>
-                  <div className="space-y-2 md:col-span-2"><Label>Município</Label><Input name="municipio" value={formData.municipio} onChange={handleChange} className="bg-background" /></div>
-                  <div className="space-y-2"><Label>UF</Label><Input name="uf" value={formData.uf} onChange={handleChange} className="bg-background" /></div>
-                </div>
-              </div>
-
-              <div className="flex justify-end space-x-3 pt-6">
-                <Button variant="ghost" onClick={() => setIsOpen(false)}>Cancelar</Button>
-                <Button onClick={handleSave} disabled={createMutation.isPending || updateMutation.isPending} className="bg-primary hover:bg-primary/90 text-white px-8">
-                  {(createMutation.isPending || updateMutation.isPending) ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Salvar
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
     </AppLayout>
   );
 }
+
