@@ -1,11 +1,6 @@
 #!/bin/bash
 set -e
 
-# ══════════════════════════════════════════════════════════════════════
-#  ContabDOC — Script de Instalação Automática para VPS Ubuntu
-#  IP: 187.77.229.111
-# ══════════════════════════════════════════════════════════════════════
-
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -18,37 +13,35 @@ fail() { echo -e "${RED}[✗] ERRO: $1${NC}"; exit 1; }
 
 echo ""
 echo -e "${YELLOW}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${YELLOW}║       ContabDOC — Instalação no VPS              ║${NC}"
+echo -e "${YELLOW}║       ContabDOC — Instalação Automática VPS      ║${NC}"
 echo -e "${YELLOW}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
 
-# Verificar se está na raiz do projeto
-if [ ! -f "pnpm-workspace.yaml" ]; then
-  fail "Execute este script na raiz do projeto ContabDOC (onde está pnpm-workspace.yaml)"
-fi
-
+GITHUB_REPO="https://github.com/xicocrm/contabdoc"
+INSTALL_DIR="/opt/contabdoc"
 DB_PASSWORD="Chico1010@@@"
+VPS_IP="187.77.229.111"
 
 # ── 1. Atualizar sistema ──────────────────────────────────────────────
 log "Atualizando sistema..."
-apt-get update -qq && apt-get upgrade -y -qq
+apt-get update -qq
+apt-get upgrade -y -qq 2>/dev/null
 ok "Sistema atualizado"
 
 # ── 2. Instalar dependências ──────────────────────────────────────────
-log "Instalando dependências do sistema..."
-apt-get install -y -qq \
-  curl wget git ca-certificates gnupg lsb-release \
-  ufw fail2ban unzip
+log "Instalando dependências..."
+apt-get install -y -qq curl wget git ca-certificates gnupg lsb-release ufw
 ok "Dependências instaladas"
 
 # ── 3. Instalar Docker ────────────────────────────────────────────────
 if ! command -v docker &>/dev/null; then
   log "Instalando Docker..."
   install -m 0755 -d /etc/apt/keyrings
-  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
+    | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
   chmod a+r /etc/apt/keyrings/docker.gpg
   echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-    https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
+https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
     > /etc/apt/sources.list.d/docker.list
   apt-get update -qq
   apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-compose-plugin
@@ -56,73 +49,91 @@ if ! command -v docker &>/dev/null; then
   systemctl start docker
   ok "Docker instalado"
 else
-  ok "Docker já instalado ($(docker --version))"
+  ok "Docker já instalado"
 fi
 
-# ── 4. Verificar Docker Compose ───────────────────────────────────────
-if ! docker compose version &>/dev/null; then
-  log "Instalando Docker Compose plugin..."
-  apt-get install -y -qq docker-compose-plugin
-  ok "Docker Compose instalado"
+# ── 4. Baixar código do GitHub ────────────────────────────────────────
+if [ -d "$INSTALL_DIR" ]; then
+  log "Atualizando código existente..."
+  cd "$INSTALL_DIR"
+  git pull origin main
 else
-  ok "Docker Compose disponível ($(docker compose version --short))"
+  log "Baixando código do GitHub..."
+  git clone "$GITHUB_REPO" "$INSTALL_DIR"
+  cd "$INSTALL_DIR"
 fi
+ok "Código atualizado"
 
 # ── 5. Criar arquivo .env ─────────────────────────────────────────────
 log "Configurando variáveis de ambiente..."
-cat > deploy/.env <<EOF
+cat > "$INSTALL_DIR/deploy/.env" <<EOF
 DB_PASSWORD=${DB_PASSWORD}
 NODE_ENV=production
 EOF
-ok "Arquivo .env criado"
+ok ".env configurado"
 
 # ── 6. Configurar firewall ────────────────────────────────────────────
-log "Configurando firewall (UFW)..."
-ufw --force reset >/dev/null
-ufw default deny incoming >/dev/null
-ufw default allow outgoing >/dev/null
-ufw allow ssh >/dev/null
-ufw allow 80/tcp >/dev/null
-ufw allow 443/tcp >/dev/null
-ufw --force enable >/dev/null
-ok "Firewall configurado (SSH, HTTP, HTTPS)"
+log "Configurando firewall..."
+ufw --force reset >/dev/null 2>&1
+ufw default deny incoming >/dev/null 2>&1
+ufw default allow outgoing >/dev/null 2>&1
+ufw allow ssh >/dev/null 2>&1
+ufw allow 80/tcp >/dev/null 2>&1
+ufw allow 443/tcp >/dev/null 2>&1
+ufw --force enable >/dev/null 2>&1
+ok "Firewall configurado"
 
 # ── 7. Build e iniciar containers ─────────────────────────────────────
-log "Fazendo build da aplicação (pode demorar alguns minutos)..."
-cd deploy
+cd "$INSTALL_DIR/deploy"
+log "Fazendo build (pode levar alguns minutos)..."
+docker compose --env-file .env down 2>/dev/null || true
 docker compose --env-file .env build --no-cache
 
 log "Iniciando todos os serviços..."
 docker compose --env-file .env up -d
 
-# ── 8. Aguardar serviços iniciarem ────────────────────────────────────
-log "Aguardando serviços ficarem prontos..."
-sleep 15
+# ── 8. Aguardar e verificar ───────────────────────────────────────────
+log "Aguardando serviços iniciarem..."
+sleep 20
 
-# ── 9. Verificar status ───────────────────────────────────────────────
-log "Verificando status dos containers..."
+log "Status dos containers:"
 docker compose --env-file .env ps
 
-# ── 10. Teste de conectividade ────────────────────────────────────────
-log "Testando API..."
-sleep 5
-if curl -sf http://localhost/api/health >/dev/null 2>&1; then
-  ok "API respondendo corretamente"
-else
-  echo -e "${YELLOW}[!]${NC} API ainda iniciando, aguarde alguns segundos..."
-fi
+# ── 9. Configurar reinício automático ─────────────────────────────────
+log "Configurando reinício automático..."
+cat > /etc/systemd/system/contabdoc.service <<EOF
+[Unit]
+Description=ContabDOC
+Requires=docker.service
+After=docker.service
 
-# ── Resumo final ──────────────────────────────────────────────────────
+[Service]
+WorkingDirectory=${INSTALL_DIR}/deploy
+ExecStart=/usr/bin/docker compose --env-file .env up
+ExecStop=/usr/bin/docker compose --env-file .env down
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable contabdoc
+ok "Reinício automático configurado"
+
+# ── Resumo ────────────────────────────────────────────────────────────
 echo ""
 echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║           ✓ INSTALAÇÃO CONCLUÍDA!                    ║${NC}"
+echo -e "${GREEN}║         ✓  INSTALAÇÃO CONCLUÍDA COM SUCESSO!         ║${NC}"
 echo -e "${GREEN}╠══════════════════════════════════════════════════════╣${NC}"
-echo -e "${GREEN}║  Sistema:   http://187.77.229.111                    ║${NC}"
-echo -e "${GREEN}║  API:       http://187.77.229.111/api                ║${NC}"
 echo -e "${GREEN}║                                                      ║${NC}"
-echo -e "${GREEN}║  Comandos úteis:                                     ║${NC}"
-echo -e "${GREEN}║  Ver logs:  docker compose logs -f                   ║${NC}"
-echo -e "${GREEN}║  Reiniciar: docker compose restart                   ║${NC}"
-echo -e "${GREEN}║  Parar:     docker compose down                      ║${NC}"
+echo -e "${GREEN}║  🌐 Acesse:  http://${VPS_IP}             ║${NC}"
+echo -e "${GREEN}║                                                      ║${NC}"
+echo -e "${GREEN}║  Comandos úteis (dentro de /opt/contabdoc/deploy):   ║${NC}"
+echo -e "${GREEN}║  Ver logs:    docker compose logs -f                 ║${NC}"
+echo -e "${GREEN}║  Reiniciar:   docker compose restart                 ║${NC}"
+echo -e "${GREEN}║  Parar:       docker compose down                    ║${NC}"
+echo -e "${GREEN}║  Atualizar:   bash /opt/contabdoc/deploy/install.sh  ║${NC}"
+echo -e "${GREEN}║                                                      ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
 echo ""
