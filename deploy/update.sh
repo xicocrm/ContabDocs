@@ -79,12 +79,9 @@ log "Executando migrações do banco..."
 docker compose --env-file .env run --rm migrate 2>/dev/null || true
 ok "Migrações executadas"
 
-log "Aguardando API ficar saudável (até 60s)..."
-timeout 60 bash -c 'until curl -sf http://localhost:3001/api/health &>/dev/null; do sleep 3; done' \
-  && ok "API saudável" || warn "API demorou mais que o esperado (verificar logs)"
-
-log "Aguardando Web Server..."
-sleep 5
+log "Aguardando API ficar saudável via nginx (até 90s)..."
+timeout 90 bash -c 'until curl -sf http://localhost/api/health &>/dev/null; do sleep 3; done' \
+  && ok "API saudável" || warn "API demorou mais que o esperado (verificar logs abaixo)"
 
 # ── 6. Verificação final ────────────────────────────────────────
 step "6/6 - Verificação final"
