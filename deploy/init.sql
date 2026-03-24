@@ -21,9 +21,13 @@ CREATE TABLE IF NOT EXISTS escritorios (
   uf TEXT,
   situacao TEXT,
   slug TEXT UNIQUE,
+  logo_url TEXT,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
+
+-- Migrações retroativas para escritórios existentes
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS logo_url TEXT;
 
 CREATE TABLE IF NOT EXISTS clientes (
   id SERIAL PRIMARY KEY,
