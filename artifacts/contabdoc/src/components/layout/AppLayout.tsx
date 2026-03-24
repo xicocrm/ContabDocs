@@ -21,7 +21,7 @@ interface AppLayoutProps {
 
 const navItems = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/escritorio", label: "Meu Escritório", icon: Building2 },
+  { href: "/escritorio", label: "Escritórios", icon: Building2 },
   { href: "/clientes", label: "Clientes", icon: Users },
   { href: "/configuracoes", label: "Configurações", icon: Settings },
 ];

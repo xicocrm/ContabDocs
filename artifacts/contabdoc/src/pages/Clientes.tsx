@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { 
-  useListarClientes, 
+  useListarClientes,
+  useListarEscritorios,
   useCriarCliente, 
   useAtualizarCliente, 
   useExcluirCliente,
@@ -76,7 +77,12 @@ export default function ClientesPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: clientes = [], isLoading } = useListarClientes();
+  const { data: escritorios = [] } = useListarEscritorios();
+  const [selectedEscritorioId, setSelectedEscritorioId] = useState<number | null>(null);
+
+  const { data: clientes = [], isLoading } = useListarClientes(
+    selectedEscritorioId ? { escritorioId: selectedEscritorioId } : undefined
+  );
   const criarCliente = useCriarCliente();
   const atualizarCliente = useAtualizarCliente();
   const excluirCliente = useExcluirCliente();
@@ -109,7 +115,7 @@ export default function ClientesPage() {
   );
 
   const openNew = () => {
-    setClienteForm(emptyCliente);
+    setClienteForm({ ...emptyCliente, escritorioId: selectedEscritorioId ?? undefined });
     setClienteId(null);
     setActiveTab("dados");
     setView('detail');
@@ -308,7 +314,7 @@ export default function ClientesPage() {
                         </div>
                       </RadioGroup>
                     </div>
-                    <div className="sm:ml-auto min-w-[220px]">
+                    <div className="min-w-[220px]">
                       <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-3 block">Regime Tributário</Label>
                       <Select value={clienteForm.regimeTributario} onValueChange={(v) => setClienteForm((p: any) => ({ ...p, regimeTributario: v }))}>
                         <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione..." /></SelectTrigger>
@@ -321,6 +327,24 @@ export default function ClientesPage() {
                         </SelectContent>
                       </Select>
                     </div>
+                    {escritorios.length > 0 && (
+                      <div className="min-w-[220px]">
+                        <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-3 block">Escritório</Label>
+                        <Select
+                          value={clienteForm.escritorioId ? String(clienteForm.escritorioId) : ""}
+                          onValueChange={(v) => setClienteForm((p: any) => ({ ...p, escritorioId: v ? parseInt(v) : null }))}
+                        >
+                          <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                          <SelectContent>
+                            {escritorios.map(e => (
+                              <SelectItem key={e.id} value={String(e.id)}>
+                                {e.nomeFantasia || e.razaoSocial || `Escritório #${e.id}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
 
                   {/* Documento + busca */}
@@ -610,17 +634,37 @@ export default function ClientesPage() {
   return (
     <AppLayout title="Clientes">
       <div className="space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-          <div className="relative w-full sm:w-96">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, CNPJ ou CPF..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-card border-border/50"
-            />
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+            <div className="relative w-full sm:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, CNPJ ou CPF..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 bg-card border-border/50"
+              />
+            </div>
+            {escritorios.length > 0 && (
+              <Select
+                value={selectedEscritorioId ? String(selectedEscritorioId) : "todos"}
+                onValueChange={(v) => setSelectedEscritorioId(v === "todos" ? null : parseInt(v))}
+              >
+                <SelectTrigger className="bg-card border-border/50 w-full sm:w-56">
+                  <SelectValue placeholder="Todos os escritórios" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os escritórios</SelectItem>
+                  {escritorios.map(e => (
+                    <SelectItem key={e.id} value={String(e.id)}>
+                      {e.nomeFantasia || e.razaoSocial || `Escritório #${e.id}`}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
-          <Button onClick={openNew} className="w-full sm:w-auto bg-gradient-to-r from-primary to-indigo-600 shadow-lg shadow-primary/20">
+          <Button onClick={openNew} className="w-full sm:w-auto bg-gradient-to-r from-primary to-indigo-600 shadow-lg shadow-primary/20 shrink-0">
             <Plus className="w-4 h-4 mr-2" /> Novo Cliente
           </Button>
         </div>
