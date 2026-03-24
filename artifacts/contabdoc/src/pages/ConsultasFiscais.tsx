@@ -59,8 +59,22 @@ export default function ConsultasFiscaisPage() {
   const save = useMutation({
     mutationFn: (data: Partial<ConsultaFiscal>) =>
       editId ? API.put(`/consultas-fiscais/${editId}`, data) : API.post("/consultas-fiscais", { ...data, escritorioId }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["consultas-fiscais", escritorioId] }); setOpen(false); toast({ title: "✓ Consulta salva!" }); },
-    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onMutate: async (data) => {
+      setOpen(false);
+      await qc.cancelQueries({ queryKey: ["consultas-fiscais", escritorioId] });
+      const previous = qc.getQueryData<ConsultaFiscal[]>(["consultas-fiscais", escritorioId]);
+      qc.setQueryData<ConsultaFiscal[]>(["consultas-fiscais", escritorioId], (old = []) =>
+        editId ? old.map(i => i.id === editId ? { ...i, ...data } : i)
+               : [...old, { id: Date.now(), escritorioId: escritorioId!, ...data } as ConsultaFiscal]
+      );
+      return { previous };
+    },
+    onError: (e: Error, _d, ctx: any) => {
+      if (ctx?.previous) qc.setQueryData(["consultas-fiscais", escritorioId], ctx.previous);
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+    },
+    onSuccess: () => toast({ title: "✓ Consulta salva!" }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["consultas-fiscais", escritorioId] }),
   });
 
   const del = useMutation({
@@ -190,8 +204,8 @@ export default function ConsultasFiscaisPage() {
             <div className="space-y-2"><Label>Responsável</Label><Input value={form.responsavel||""} onChange={e=>setForm(p=>({...p,responsavel:e.target.value}))} className="bg-background" /></div>
             <div className="space-y-2"><Label>Resultado</Label><Textarea value={form.resultado||""} onChange={e=>setForm(p=>({...p,resultado:e.target.value}))} className="bg-background resize-none" rows={3} placeholder="Registre o resultado da consulta..." /></div>
             <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes||""} onChange={e=>setForm(p=>({...p,observacoes:e.target.value}))} className="bg-background resize-none" rows={2} /></div>
-            <Button onClick={() => save.mutate(form)} disabled={save.isPending || !form.tipo} className="w-full bg-primary">
-              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Salvar
+            <Button onClick={() => save.mutate(form)} disabled={!form.tipo} className="w-full bg-primary">
+              Salvar
             </Button>
           </div>
         </DialogContent>

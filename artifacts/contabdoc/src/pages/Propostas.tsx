@@ -52,8 +52,22 @@ export default function PropostasPage() {
   const save = useMutation({
     mutationFn: (data: Partial<Proposta>) =>
       editId ? API.put(`/propostas/${editId}`, data) : API.post("/propostas", { ...data, escritorioId }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["propostas", escritorioId] }); setOpen(false); toast({ title: "✓ Proposta salva!" }); },
-    onError: (e: Error) => toast({ title: "Erro", description: e.message, variant: "destructive" }),
+    onMutate: async (data) => {
+      setOpen(false);
+      await qc.cancelQueries({ queryKey: ["propostas", escritorioId] });
+      const previous = qc.getQueryData<Proposta[]>(["propostas", escritorioId]);
+      qc.setQueryData<Proposta[]>(["propostas", escritorioId], (old = []) =>
+        editId ? old.map(i => i.id === editId ? { ...i, ...data } : i)
+               : [...old, { id: Date.now(), escritorioId: escritorioId!, ...data } as Proposta]
+      );
+      return { previous };
+    },
+    onError: (e: Error, _d, ctx: any) => {
+      if (ctx?.previous) qc.setQueryData(["propostas", escritorioId], ctx.previous);
+      toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" });
+    },
+    onSuccess: () => toast({ title: "✓ Proposta salva!" }),
+    onSettled: () => qc.invalidateQueries({ queryKey: ["propostas", escritorioId] }),
   });
 
   const del = useMutation({
@@ -176,8 +190,8 @@ export default function PropostasPage() {
               <div className="space-y-2"><Label>Data Resposta</Label><Input value={form.dataResposta||""} onChange={e=>setForm(p=>({...p,dataResposta:formatters.date(e.target.value)}))} className="bg-background font-mono" placeholder="DD/MM/AAAA" maxLength={10} /></div>
             </div>
             <div className="space-y-2"><Label>Observações</Label><Textarea value={form.observacoes||""} onChange={e=>setForm(p=>({...p,observacoes:e.target.value}))} className="bg-background resize-none" rows={2} /></div>
-            <Button onClick={() => save.mutate(form)} disabled={save.isPending || !form.titulo} className="w-full bg-primary">
-              {save.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}Salvar
+            <Button onClick={() => save.mutate(form)} disabled={!form.titulo} className="w-full bg-primary">
+              Salvar
             </Button>
           </div>
         </DialogContent>
