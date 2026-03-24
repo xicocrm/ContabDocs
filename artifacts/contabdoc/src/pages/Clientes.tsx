@@ -34,7 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2, Plus, Search, Edit, Trash2, Building2, User, ArrowLeft,
-  FileText, CheckCircle, AlertCircle, DollarSign, Calendar, MapPin, FolderOpen
+  FileText, CheckCircle, AlertCircle, DollarSign, Calendar, MapPin, FolderOpen, Lock, Key, ExternalLink
 } from "lucide-react";
 
 const emptyCliente = {
@@ -106,6 +106,8 @@ export default function ClientesPage() {
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("dados");
+
+  const [resetandoSenha, setResetandoSenha] = useState(false);
 
   const [isContratoOpen, setIsContratoOpen] = useState(false);
   const [contratoId, setContratoId] = useState<number | null>(null);
@@ -646,13 +648,19 @@ export default function ClientesPage() {
             <TabsContent value="portal" className="mt-6">
               <Card className="bg-card border-border/50">
                 <CardContent className="pt-6 space-y-6">
+
+                  {/* Toggle ativo */}
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-white flex items-center gap-2"><FolderOpen className="w-4 h-4 text-primary" /> Acesso ao Portal</h3>
-                      <p className="text-sm text-muted-foreground mt-1">Configure o acesso do cliente ao portal de documentos online</p>
+                      <h3 className="font-semibold text-white flex items-center gap-2">
+                        <FolderOpen className="w-4 h-4 text-primary" /> Acesso ao Portal
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">Controle o acesso deste cliente ao portal de documentos online</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-sm text-muted-foreground">Portal ativo</span>
+                      <span className={`text-sm font-medium ${clienteForm.ativoPortal ? 'text-green-400' : 'text-muted-foreground'}`}>
+                        {clienteForm.ativoPortal ? 'Ativo' : 'Inativo'}
+                      </span>
                       <button
                         type="button"
                         onClick={() => setClienteForm((p: any) => ({ ...p, ativoPortal: !p.ativoPortal }))}
@@ -663,55 +671,91 @@ export default function ClientesPage() {
                     </div>
                   </div>
 
-                  {!clienteForm.ativoPortal && (
-                    <div className="bg-secondary/50 border border-border/50 rounded-lg p-4 text-sm text-muted-foreground">
-                      ⚠️ O acesso ao portal está desativado para este cliente. Ative acima para liberar o acesso.
-                    </div>
-                  )}
+                  {clienteForm.ativoPortal ? (
+                    <div className="space-y-4">
+                      {/* Credenciais */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="bg-secondary/40 border border-border/50 rounded-xl p-4 space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Login do cliente</p>
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-primary shrink-0" />
+                            <span className="font-mono text-sm text-white font-medium">
+                              {clienteForm.cnpj || clienteForm.cpf || 'CNPJ ou CPF do cadastro'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">O cliente entra com o CNPJ ou CPF</p>
+                        </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>E-mail do portal</Label>
-                      <Input
-                        name="emailPortal"
-                        type="email"
-                        value={clienteForm.emailPortal || ''}
-                        onChange={handleClienteChange}
-                        placeholder="email@cliente.com.br"
-                        className="bg-background"
-                        disabled={!clienteForm.ativoPortal}
-                      />
-                      <p className="text-xs text-muted-foreground">E-mail que o cliente usará para entrar no portal</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Senha do portal</Label>
-                      <Input
-                        name="senhaPortal"
-                        type="password"
-                        value={clienteForm.senhaPortal || ''}
-                        onChange={handleClienteChange}
-                        placeholder={clienteId ? "Deixe em branco para manter a atual" : "Defina uma senha"}
-                        className="bg-background"
-                        disabled={!clienteForm.ativoPortal}
-                      />
-                      <p className="text-xs text-muted-foreground">Senha de acesso ao portal</p>
-                    </div>
-                  </div>
+                        <div className="bg-secondary/40 border border-border/50 rounded-xl p-4 space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Senha padrão</p>
+                          <div className="flex items-center gap-2">
+                            <Lock className="w-4 h-4 text-primary shrink-0" />
+                            <span className="font-mono text-sm text-white font-medium tracking-widest">
+                              {(clienteForm.cnpj || clienteForm.cpf || '').replace(/\D/g, '').slice(0, 6) ? '••••••••••••••' : '—'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Somente os dígitos do CNPJ/CPF</p>
+                        </div>
+                      </div>
 
-                  {clienteForm.ativoPortal && (
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                      <p className="text-sm text-blue-300 font-medium">Como o cliente acessa o portal?</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        O cliente acessa via: <span className="font-mono text-blue-400">[sistema]/portal/[slug-do-escritório]</span>
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1">Configure o slug do escritório em: <strong>Escritórios → Editar → campo "Slug do Portal"</strong></p>
+                      {/* Redefinir senha personalizada */}
+                      {!resetandoSenha ? (
+                        <button
+                          type="button"
+                          onClick={() => setResetandoSenha(true)}
+                          className="flex items-center gap-1.5 text-xs text-primary hover:underline"
+                        >
+                          <Key className="w-3 h-3" />
+                          Definir senha personalizada
+                        </button>
+                      ) : (
+                        <div className="bg-secondary/40 border border-border/50 rounded-xl p-4 space-y-3">
+                          <p className="text-sm font-medium text-white">Nova senha personalizada</p>
+                          <div className="flex gap-2">
+                            <Input
+                              name="senhaPortal"
+                              type="password"
+                              value={clienteForm.senhaPortal || ''}
+                              onChange={handleClienteChange}
+                              placeholder="Mínimo 6 caracteres"
+                              className="bg-background"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => { setResetandoSenha(false); setClienteForm((p: any) => ({ ...p, senhaPortal: '' })); }}
+                              className="text-muted-foreground shrink-0"
+                            >
+                              Cancelar
+                            </Button>
+                          </div>
+                          <p className="text-xs text-muted-foreground">Deixe em branco para manter a senha atual (dígitos do CNPJ/CPF)</p>
+                        </div>
+                      )}
+
+                      {/* URL do portal */}
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+                          <p className="text-sm text-blue-300 font-medium">Link de acesso ao portal</p>
+                        </div>
+                        <p className="text-sm text-muted-foreground pl-5">
+                          <span className="font-mono text-blue-400 text-xs">[sistema]/portal/[slug-do-escritório]</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground pl-5">Configure o slug em: Escritórios → Editar → campo "Slug do Portal"</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-secondary/40 border border-border/50 rounded-xl p-5 text-center">
+                      <FolderOpen className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Portal desativado. Ative o toggle acima para liberar o acesso ao cliente.</p>
                     </div>
                   )}
 
                   <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
                     <Button onClick={salvarCliente} disabled={isSavingCliente} className="bg-primary px-8">
                       {isSavingCliente && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-                      Salvar Acesso ao Portal
+                      Salvar
                     </Button>
                   </div>
                 </CardContent>
