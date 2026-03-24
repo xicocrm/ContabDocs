@@ -24,6 +24,7 @@ export default function PortalLogin() {
   const [escritorio, setEscritorio] = useState<PortalEscritorio | null>(null);
   const [carregandoInfo, setCarregandoInfo] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [erroServidor, setErroServidor] = useState(false);
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -36,12 +37,13 @@ export default function PortalLogin() {
       return;
     }
     fetch(`${getBase()}/api/portal/info/${slug}`)
-      .then(r => {
+      .then(async r => {
         if (r.status === 404) { setNotFound(true); return null; }
+        if (!r.ok) { setErroServidor(true); return null; }
         return r.json();
       })
       .then(d => { if (d) setEscritorio(d); })
-      .catch(() => setNotFound(true))
+      .catch(() => setErroServidor(true))
       .finally(() => setCarregandoInfo(false));
   }, [slug]);
 
@@ -75,6 +77,21 @@ export default function PortalLogin() {
     );
   }
 
+  if (erroServidor) {
+    return (
+      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 text-yellow-400 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-white mb-2">Erro ao carregar portal</h1>
+          <p className="text-gray-400 mb-4">Não foi possível conectar ao servidor. Tente novamente em instantes.</p>
+          <button onClick={() => window.location.reload()} className="text-blue-400 text-sm underline hover:text-blue-300">
+            Tentar novamente
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (notFound) {
     return (
       <div className="min-h-screen bg-[#0f1117] flex items-center justify-center p-4">
@@ -82,6 +99,7 @@ export default function PortalLogin() {
           <AlertCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
           <h1 className="text-xl font-semibold text-white mb-2">Portal não encontrado</h1>
           <p className="text-gray-400">O endereço <span className="text-blue-400 font-mono">{slug}</span> não corresponde a nenhum escritório cadastrado.</p>
+          <p className="text-gray-500 text-sm mt-2">Verifique se o endereço está correto ou contate seu escritório contábil.</p>
         </div>
       </div>
     );
