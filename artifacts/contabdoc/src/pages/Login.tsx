@@ -12,9 +12,10 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() => localStorage.getItem("contabdoc_saved_email") || "");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [lembrar, setLembrar] = useState(() => !!localStorage.getItem("contabdoc_saved_email"));
   const [enviando, setEnviando] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
 
@@ -27,7 +28,7 @@ export default function Login() {
     e.preventDefault();
     setEnviando(true);
     try {
-      await login(email.trim(), senha);
+      await login(email.trim(), senha, lembrar);
       setLocation("/");
     } catch (err: any) {
       toast({ title: "Falha no login", description: err.message, variant: "destructive" });
@@ -101,6 +102,30 @@ export default function Login() {
                   {mostrarSenha ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                role="checkbox"
+                aria-checked={lembrar}
+                onClick={() => setLembrar(!lembrar)}
+                className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:ring-offset-[#1a1d27] ${
+                  lembrar ? "bg-blue-600 border-blue-600" : "bg-[#0f1117] border-white/20 hover:border-white/40"
+                }`}
+              >
+                {lembrar && (
+                  <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                    <path d="M1.5 5L4 7.5L8.5 2.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                )}
+              </button>
+              <span
+                onClick={() => setLembrar(!lembrar)}
+                className="text-sm text-gray-400 cursor-pointer select-none hover:text-gray-300 transition-colors"
+              >
+                Lembrar-me neste dispositivo
+              </span>
             </div>
 
             <Button

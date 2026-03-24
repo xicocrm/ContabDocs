@@ -12,7 +12,7 @@ interface AuthCtx {
   user: AuthUser | null;
   loading: boolean;
   isSetupNeeded: boolean;
-  login: (email: string, senha: string) => Promise<void>;
+  login: (email: string, senha: string, lembrar?: boolean) => Promise<void>;
   logout: () => void;
   checkSetup: () => Promise<boolean>;
 }
@@ -25,6 +25,25 @@ const AuthContext = createContext<AuthCtx>({
   logout: () => {},
   checkSetup: async () => false,
 });
+
+function getToken(): string | null {
+  return localStorage.getItem("contabdoc_token") || sessionStorage.getItem("contabdoc_token");
+}
+
+function saveToken(token: string, lembrar: boolean) {
+  if (lembrar) {
+    localStorage.setItem("contabdoc_token", token);
+    sessionStorage.removeItem("contabdoc_token");
+  } else {
+    sessionStorage.setItem("contabdoc_token", token);
+    localStorage.removeItem("contabdoc_token");
+  }
+}
+
+function clearToken() {
+  localStorage.removeItem("contabdoc_token");
+  sessionStorage.removeItem("contabdoc_token");
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
@@ -42,25 +61,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem("contabdoc_token");
+    const token = getToken();
     if (!token) {
       setLoading(false);
       return;
     }
     API.get<AuthUser>("/auth/me")
       .then(u => { setUser(u); })
-      .catch(() => { localStorage.removeItem("contabdoc_token"); })
+      .catch(() => { clearToken(); })
       .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(async (email: string, senha: string) => {
+  const login = useCallback(async (email: string, senha: string, lembrar = true) => {
     const data = await API.post<{ token: string; user: AuthUser }>("/auth/login", { email, senha });
-    localStorage.setItem("contabdoc_token", data.token);
+    saveToken(data.token, lembrar);
+    if (lembrar) {
+      localStorage.setItem("contabdoc_saved_email", email.toLowerCase().trim());
+    } else {
+      localStorage.removeItem("contabdoc_saved_email");
+    }
     setUser(data.user);
   }, []);
 
   const logout = useCallback(() => {
-    localStorage.removeItem("contabdoc_token");
+    clearToken();
     setUser(null);
     const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
     window.location.href = base + "/login";
