@@ -34,7 +34,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2, Plus, Search, Edit, Trash2, Building2, User, ArrowLeft,
-  FileText, CheckCircle, AlertCircle, DollarSign, Calendar, MapPin, FolderOpen, Lock, Key, ExternalLink
+  FileText, CheckCircle, AlertCircle, DollarSign, Calendar, MapPin, FolderOpen, Lock, Key, ExternalLink, Eye, EyeOff
 } from "lucide-react";
 
 const emptyCliente = {
@@ -108,6 +108,8 @@ export default function ClientesPage() {
   const [activeTab, setActiveTab] = useState("dados");
 
   const [resetandoSenha, setResetandoSenha] = useState(false);
+  const [mostrarSenhaPortal, setMostrarSenhaPortal] = useState(false);
+  const [portalAtivoServidor, setPortalAtivoServidor] = useState(false);
 
   const [isContratoOpen, setIsContratoOpen] = useState(false);
   const [contratoId, setContratoId] = useState<number | null>(null);
@@ -132,6 +134,9 @@ export default function ClientesPage() {
     });
     setClienteId(null);
     setActiveTab("dados");
+    setPortalAtivoServidor(false);
+    setResetandoSenha(false);
+    setMostrarSenhaPortal(false);
     setView('detail');
   };
 
@@ -139,6 +144,9 @@ export default function ClientesPage() {
     setClienteForm({ ...emptyCliente, ...c });
     setClienteId(c.id);
     setActiveTab("dados");
+    setPortalAtivoServidor(!!(c as any).ativoPortal);
+    setResetandoSenha(false);
+    setMostrarSenhaPortal(false);
     setView('detail');
   };
 
@@ -223,8 +231,20 @@ export default function ClientesPage() {
     }
     setIsSavingCliente(true);
     try {
+      const dadosParaSalvar = { ...clienteForm };
+      // Na primeira ativação do portal (inativo → ativo), define senha = número do contrato
+      const ativandoAgora = dadosParaSalvar.ativoPortal && !portalAtivoServidor;
+      if (ativandoAgora && !dadosParaSalvar.senhaPortal) {
+        const contratoAtivo = contratos.find((c: any) => c.status === 'ativo') || contratos[0];
+        if (contratoAtivo?.numeroContrato) {
+          dadosParaSalvar.senhaPortal = contratoAtivo.numeroContrato;
+        }
+      }
       if (clienteId) {
-        await atualizarCliente.mutateAsync({ id: clienteId, data: clienteForm });
+        await atualizarCliente.mutateAsync({ id: clienteId, data: dadosParaSalvar });
+        setPortalAtivoServidor(!!dadosParaSalvar.ativoPortal);
+        setResetandoSenha(false);
+        setClienteForm((p: any) => ({ ...p, senhaPortal: '' }));
         toast({ title: "✓ Cliente atualizado!" });
       } else {
         const novo = await criarCliente.mutateAsync({ data: clienteForm });
@@ -688,13 +708,38 @@ export default function ClientesPage() {
 
                         <div className="bg-secondary/40 border border-border/50 rounded-xl p-4 space-y-2">
                           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Senha padrão</p>
-                          <div className="flex items-center gap-2">
-                            <Lock className="w-4 h-4 text-primary shrink-0" />
-                            <span className="font-mono text-sm text-white font-medium tracking-widest">
-                              {(clienteForm.cnpj || clienteForm.cpf || '').replace(/\D/g, '').slice(0, 6) ? '••••••••••••••' : '—'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-muted-foreground">Somente os dígitos do CNPJ/CPF</p>
+                          {(() => {
+                            const contratoAtivo = contratos.find((c: any) => c.status === 'ativo') || contratos[0];
+                            const senhaDefault = contratoAtivo?.numeroContrato || '';
+                            return (
+                              <>
+                                <div className="flex items-center gap-2">
+                                  <Lock className="w-4 h-4 text-primary shrink-0" />
+                                  <span className="font-mono text-sm text-white font-medium flex-1">
+                                    {senhaDefault
+                                      ? (mostrarSenhaPortal ? senhaDefault : '•'.repeat(senhaDefault.length))
+                                      : <span className="text-muted-foreground not-italic text-xs">Nenhum contrato cadastrado</span>
+                                    }
+                                  </span>
+                                  {senhaDefault && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setMostrarSenhaPortal(v => !v)}
+                                      className="text-muted-foreground hover:text-white transition-colors shrink-0"
+                                      title={mostrarSenhaPortal ? 'Ocultar' : 'Mostrar'}
+                                    >
+                                      {mostrarSenhaPortal ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    </button>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {senhaDefault
+                                    ? `Número do contrato ${contratoAtivo?.status === 'ativo' ? 'ativo' : ''}: ${contratoAtivo?.numeroContrato}`
+                                    : 'Cadastre um contrato para definir a senha padrão'}
+                                </p>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
 
