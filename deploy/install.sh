@@ -17,7 +17,7 @@ echo -e "${YELLOW}║       ContabDOC — Instalação Automática VPS      ║$
 echo -e "${YELLOW}╚══════════════════════════════════════════════════╝${NC}"
 echo ""
 
-GITHUB_REPO="https://github.com/xicocrm/contabdoc"
+GITHUB_REPO="https://github.com/xicocrm/ContabDocs"
 INSTALL_DIR="/opt/contabdoc"
 DB_PASSWORD="Chico1010@@@"
 VPS_IP="187.77.229.111"
