@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Loader2, Lock, Mail, ShieldCheck, Eye, EyeOff, KeyRound, Users, FileText, BarChart3, AlertCircle } from "lucide-react";
+import { Loader2, Lock, Mail, ShieldCheck, Eye, EyeOff, KeyRound, Users, FileText, BarChart3, AlertCircle, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Login() {
@@ -64,7 +64,7 @@ export default function Login() {
 
   if (loading || checkingSetup) {
     return (
-      <div className="min-h-screen bg-[#0f1117] flex items-center justify-center">
+      <div className="min-h-screen bg-[#111827] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
@@ -77,28 +77,30 @@ export default function Login() {
   return (
     <div className="min-h-screen flex">
       {/* Painel esquerdo — branding */}
-      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden flex-col items-center justify-center p-12 bg-[#0d1117]">
+      <div className="hidden lg:flex lg:w-[55%] relative overflow-hidden flex-col items-center justify-center p-12 bg-[#111827]">
         {/* Decorações de fundo */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 via-transparent to-indigo-900/20 pointer-events-none" />
-        <div className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full bg-blue-600/5 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-indigo-600/5 translate-x-1/4 translate-y-1/4 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/12 via-transparent to-indigo-900/15 pointer-events-none" />
+        <div className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full bg-blue-500/8 -translate-x-1/2 -translate-y-1/2 pointer-events-none" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full bg-indigo-500/8 translate-x-1/4 translate-y-1/4 pointer-events-none" />
 
         <div className="relative z-10 w-full max-w-lg">
           {/* Logo */}
           <div className="flex items-center gap-3 mb-12">
-            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/30">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-600/40">
               <ShieldCheck className="w-7 h-7 text-white" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white tracking-tight">ContabDOC</h1>
-              <p className="text-blue-400/80 text-xs font-medium">Sistema de Gestão Contábil</p>
+              <p className="text-blue-400/90 text-xs font-medium tracking-wide uppercase">Sistema de Gestão Contábil</p>
             </div>
           </div>
 
           {/* Headline */}
           <div className="mb-10">
-            <h2 className="text-4xl font-bold text-white leading-tight mb-4">
-              Gestão contábil<br />
+            <h2 className="text-4xl font-bold leading-tight mb-4">
+              <span className="text-white">Gestão contábil </span>
+              <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">DIGITAL</span>
+              <br />
               <span className="text-blue-400">simples e eficiente</span>
             </h2>
             <p className="text-gray-400 text-lg leading-relaxed">
@@ -107,34 +109,55 @@ export default function Login() {
           </div>
 
           {/* Features */}
-          <div className="space-y-4">
+          <div className="space-y-3">
             {[
               { icon: Users, title: "Multi-cliente e multi-escritório", desc: "Gerencie todos os seus clientes organizados por escritório" },
               { icon: FileText, title: "Protocolos e documentos", desc: "Controle de entregas, guias e obrigações mensais" },
               { icon: BarChart3, title: "Consultas fiscais avançadas", desc: "Simples Nacional, RAT/FAP, regime previdenciário" },
             ].map((f) => (
-              <div key={f.title} className="flex items-start gap-4 p-4 rounded-xl bg-white/5 border border-white/8 backdrop-blur-sm">
-                <div className="w-9 h-9 bg-blue-600/20 rounded-lg flex items-center justify-center shrink-0">
+              <div key={f.title} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.06] border border-white/10 backdrop-blur-sm hover:bg-white/[0.09] transition-colors">
+                <div className="w-9 h-9 bg-blue-600/25 rounded-lg flex items-center justify-center shrink-0">
                   <f.icon className="w-4 h-4 text-blue-400" />
                 </div>
                 <div>
-                  <p className="text-white text-sm font-medium">{f.title}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">{f.desc}</p>
+                  <p className="text-white text-sm font-semibold">{f.title}</p>
+                  <p className="text-gray-400 text-xs mt-0.5">{f.desc}</p>
                 </div>
               </div>
             ))}
+
+            {/* Card de Suporte WhatsApp */}
+            <a
+              href="https://wa.me/5571988924006"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-4 p-4 rounded-xl border border-green-500/25 bg-green-500/[0.07] hover:bg-green-500/[0.13] hover:border-green-500/40 transition-all duration-200 group"
+            >
+              <div className="w-9 h-9 bg-green-500/20 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-green-500/30 transition-colors">
+                <MessageCircle className="w-4 h-4 text-green-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white text-sm font-semibold">Suporte via WhatsApp</p>
+                <p className="text-green-400 text-xs mt-0.5 font-medium">(71) 9.8892-4006 · Chico Santana</p>
+              </div>
+              <div className="text-green-500/50 group-hover:text-green-400 transition-colors shrink-0">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </div>
+            </a>
           </div>
         </div>
 
         {/* Rodapé esquerdo */}
-        <p className="absolute bottom-6 text-gray-700 text-xs">ContabDOC © {new Date().getFullYear()}</p>
+        <p className="absolute bottom-6 text-gray-600 text-xs">ContabDOC © {new Date().getFullYear()}</p>
       </div>
 
       {/* Painel direito — formulário */}
-      <div className="w-full lg:w-[45%] bg-[#0f1117] flex flex-col items-center justify-center p-8 lg:p-12 relative">
+      <div className="w-full lg:w-[45%] bg-[#141d2e] flex flex-col items-center justify-center p-8 lg:p-12 relative">
         {/* Logo mobile (visível apenas em telas pequenas) */}
         <div className="lg:hidden flex items-center gap-2 mb-8">
-          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/40">
             <ShieldCheck className="w-5 h-5 text-white" />
           </div>
           <span className="text-xl font-bold text-white">ContabDOC</span>
@@ -158,7 +181,7 @@ export default function Login() {
                   placeholder="seu@email.com"
                   required
                   autoFocus
-                  className="pl-10 bg-[#1a1d27] border-white/10 text-white placeholder:text-gray-600 focus:border-blue-500 h-11"
+                  className="pl-10 bg-white/[0.06] border-white/10 text-white placeholder:text-gray-500 focus:border-blue-500 focus:bg-white/[0.09] h-11 transition-colors"
                 />
               </div>
             </div>
@@ -173,7 +196,7 @@ export default function Login() {
                   onChange={e => setSenha(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="pl-10 pr-10 bg-[#1a1d27] border-white/10 text-white placeholder:text-gray-600 focus:border-blue-500 h-11"
+                  className="pl-10 pr-10 bg-white/[0.06] border-white/10 text-white placeholder:text-gray-500 focus:border-blue-500 focus:bg-white/[0.09] h-11 transition-colors"
                 />
                 <button
                   type="button"
@@ -192,7 +215,7 @@ export default function Login() {
                 className="flex items-center gap-2 group"
               >
                 <div className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                  lembrar ? "bg-blue-600 border-blue-600" : "bg-[#1a1d27] border-white/20 group-hover:border-white/40"
+                  lembrar ? "bg-blue-600 border-blue-600" : "bg-white/[0.06] border-white/20 group-hover:border-white/40"
                 }`}>
                   {lembrar && (
                     <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
