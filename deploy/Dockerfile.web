@@ -2,14 +2,11 @@ FROM node:20-alpine AS builder
 RUN npm install -g pnpm@9
 WORKDIR /app
 
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY artifacts/contabdoc/package.json ./artifacts/contabdoc/
-COPY lib/db/package.json ./lib/db/
-COPY lib/api-zod/package.json ./lib/api-zod/
-RUN pnpm install --no-frozen-lockfile --ignore-scripts
-
+# Copia tudo do monorepo (necessario para catalogo pnpm e workspace packages)
 COPY . .
-ENV BASE_PATH=/
+
+# Instala dependencias e compila o frontend
+RUN pnpm install --no-frozen-lockfile --ignore-scripts
 RUN pnpm --filter @workspace/contabdoc run build
 
 FROM nginx:alpine
