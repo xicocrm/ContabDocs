@@ -48,8 +48,15 @@ router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
   try {
+    const body = { ...req.body };
+    const dateFields = ["dataNascimento", "dataAbertura", "createdAt", "updatedAt"];
+    for (const field of dateFields) {
+      if (body[field] && typeof body[field] === "string") {
+        body[field] = new Date(body[field]);
+      }
+    }
     const rows = await db.update(clientesTable)
-      .set({ ...req.body, updatedAt: new Date() })
+      .set({ ...body, updatedAt: new Date() })
       .where(eq(clientesTable.id, id))
       .returning();
     if (!rows[0]) { res.status(404).json({ message: "Não encontrado" }); return; }
