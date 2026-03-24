@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, escritoriosTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -33,6 +33,19 @@ router.post("/", async (req, res) => {
     delete body.id;
     delete body.createdAt;
     delete body.updatedAt;
+    const cnpj = body.cnpj ? String(body.cnpj).replace(/\D/g, "") : null;
+    const cpf  = body.cpf  ? String(body.cpf).replace(/\D/g, "")  : null;
+    const filters = [];
+    if (cnpj) filters.push(eq(escritoriosTable.cnpj, cnpj));
+    if (cpf)  filters.push(eq(escritoriosTable.cpf, cpf));
+    if (filters.length > 0) {
+      const existing = await db.select({ id: escritoriosTable.id, razaoSocial: escritoriosTable.razaoSocial })
+        .from(escritoriosTable).where(or(...filters)).limit(1);
+      if (existing[0]) {
+        res.status(409).json({ message: `Este escritório já está cadastrado: "${existing[0].razaoSocial || 'ID ' + existing[0].id}"` });
+        return;
+      }
+    }
     const rows = await db.insert(escritoriosTable).values(body).returning();
     res.status(201).json(rows[0]);
   } catch (err) {

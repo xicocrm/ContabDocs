@@ -6,6 +6,13 @@ import clientesRouter from "./clientes";
 import contratosRouter from "./contratos";
 import usuariosRouter from "./usuarios";
 import integracoesRouter from "./integracoes";
+import contasRouter from "./contas";
+import negociacoesRouter from "./negociacoes";
+import propostasRouter from "./propostas";
+import processosRouter from "./processos";
+import protocolosRouter from "./protocolos";
+import campanhasRouter from "./campanhas";
+import consultasFiscaisRouter from "./consultas-fiscais";
 
 const router: IRouter = Router();
 
@@ -16,5 +23,12 @@ router.use("/clientes", clientesRouter);
 router.use("/contratos", contratosRouter);
 router.use("/usuarios", usuariosRouter);
 router.use("/integracoes", integracoesRouter);
+router.use("/contas", contasRouter);
+router.use("/negociacoes", negociacoesRouter);
+router.use("/propostas", propostasRouter);
+router.use("/processos", processosRouter);
+router.use("/protocolos", protocolosRouter);
+router.use("/campanhas", campanhasRouter);
+router.use("/consultas-fiscais", consultasFiscaisRouter);
 
 export default router;

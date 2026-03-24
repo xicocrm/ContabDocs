@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { buscarCep } from "@/lib/cep";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { useEscritorio } from "@/contexts/EscritorioContext";
 import {
   useListarEscritorios,
   useCriarEscritorio,
@@ -52,6 +53,8 @@ export default function EscritorioPage() {
   const criarEscritorio = useCriarEscritorio();
   const atualizarEscritorio = useAtualizarEscritorio();
   const excluirEscritorio = useExcluirEscritorio();
+
+  const { escritorioId: activeEscritorioId, setEscritorio: setActiveEscritorio } = useEscritorio();
 
   const [view, setView] = useState<"list" | "detail">("list");
   const [escritorioId, setEscritorioId] = useState<number | null>(null);
@@ -419,7 +422,22 @@ export default function EscritorioPage() {
                       {e.municipio ? `${e.municipio}/${e.uf}` : "—"}
                     </TableCell>
                     <TableCell onClick={ev => ev.stopPropagation()}>
-                      <div className="flex gap-1 justify-end">
+                      <div className="flex gap-1 justify-end items-center">
+                        {activeEscritorioId === e.id ? (
+                          <Badge variant="outline" className="text-[10px] bg-primary/10 text-primary border-primary/30 mr-1">Ativo</Badge>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground hover:text-primary hover:bg-primary/10 px-2"
+                            onClick={() => {
+                              setActiveEscritorio(e.id, e.nomeFantasia || e.razaoSocial || String(e.id));
+                              toast({ title: `✓ Escritório ativo: ${e.nomeFantasia || e.razaoSocial}` });
+                            }}
+                          >
+                            Selecionar
+                          </Button>
+                        )}
                         <Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-primary/10 hover:text-primary" onClick={() => openEdit(e)}>
                           <Edit className="w-3.5 h-3.5" />
                         </Button>
