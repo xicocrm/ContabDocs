@@ -644,7 +644,7 @@ export default function ClientesPage() {
                 {filteredClientes.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-16 text-muted-foreground">
-                      <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                      <User className="w-10 h-10 mx-auto mb-3 opacity-30" />
                       Nenhum cliente encontrado. <button onClick={openNew} className="text-primary underline ml-1">Cadastrar agora</button>
                     </TableCell>
                   </TableRow>

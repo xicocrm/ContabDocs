@@ -41,14 +41,14 @@ export default function ContratosPage() {
   const [formData, setFormData] = useState<any>(initialForm);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const getClientName = (id: number) => {
+  const getClientName = (id: number): string => {
     const c = clientes.find(cl => cl.id === id);
-    return c ? (c.nomeFantasia || c.razaoSocial) : `Cliente #${id}`;
+    return c ? (c.nomeFantasia || c.razaoSocial || `Cliente #${id}`) : `Cliente #${id}`;
   };
 
   const filtered = contratos.filter(c => 
-    c.numeroContrato.includes(searchTerm) || 
-    getClientName(c.clienteId).toLowerCase().includes(searchTerm.toLowerCase())
+    (c.numeroContrato || '').includes(searchTerm) || 
+    getClientName(c.clienteId ?? 0).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const openNew = () => {

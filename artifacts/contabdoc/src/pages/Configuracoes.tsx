@@ -60,7 +60,7 @@ export default function ConfiguracoesPage() {
         await updateUsr.mutateAsync({ id: usrEditId, data: usrForm });
         toast({ title: "Usuário atualizado" });
       } else {
-        if(!usrForm.senha) return toast({ title: "Senha obrigatória", variant: "destructive" });
+        if(!usrForm.senha) { toast({ title: "Senha obrigatória", variant: "destructive" }); return; }
         await createUsr.mutateAsync({ data: usrForm });
         toast({ title: "Usuário criado" });
       }
