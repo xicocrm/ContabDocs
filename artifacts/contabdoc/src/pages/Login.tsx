@@ -91,7 +91,7 @@ export default function Login() {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white tracking-tight">ContabDOC</h1>
-              <p className="text-blue-400/90 text-xs font-medium tracking-wide uppercase">Sistema de Gestão Contábil</p>
+              <p className="text-blue-400/90 text-xs font-medium tracking-wide uppercase">Sistema de Gestão Documental CONTÁBIL</p>
             </div>
           </div>
 
