@@ -1,22 +1,33 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: ContabDOC API specification
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: escritorios
+    description: Escritório operations
+  - name: clientes
+    description: Cliente operations
+  - name: contratos
+    description: Contrato operations
+  - name: usuarios
+    description: Usuário operations
+  - name: integracoes
+    description: Integração operations
+  - name: receita
+    description: Receita Federal operations
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +35,424 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /receita/cnpj/{cnpj}:
+    get:
+      operationId: consultarCnpj
+      tags: [receita]
+      summary: Consulta CNPJ na Receita Federal
+      parameters:
+        - name: cnpj
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Dados do CNPJ
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DadosCnpj"
+        "404":
+          description: CNPJ não encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /receita/cpf/{cpf}:
+    get:
+      operationId: validarCpf
+      tags: [receita]
+      summary: Valida CPF na Receita Federal
+      parameters:
+        - name: cpf
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Resultado da validação do CPF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ValidacaoCpf"
+
+  /escritorios:
+    get:
+      operationId: listarEscritorios
+      tags: [escritorios]
+      summary: Lista escritórios
+      responses:
+        "200":
+          description: Lista de escritórios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Escritorio"
+    post:
+      operationId: criarEscritorio
+      tags: [escritorios]
+      summary: Cria escritório
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarEscritorioRequest"
+      responses:
+        "201":
+          description: Escritório criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Escritorio"
+
+  /escritorios/{id}:
+    get:
+      operationId: buscarEscritorio
+      tags: [escritorios]
+      summary: Busca escritório por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Escritório encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Escritorio"
+    put:
+      operationId: atualizarEscritorio
+      tags: [escritorios]
+      summary: Atualiza escritório
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarEscritorioRequest"
+      responses:
+        "200":
+          description: Escritório atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Escritorio"
+    delete:
+      operationId: excluirEscritorio
+      tags: [escritorios]
+      summary: Exclui escritório
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Excluído com sucesso
+
+  /clientes:
+    get:
+      operationId: listarClientes
+      tags: [clientes]
+      summary: Lista clientes
+      parameters:
+        - name: escritorioId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de clientes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Cliente"
+    post:
+      operationId: criarCliente
+      tags: [clientes]
+      summary: Cria cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarClienteRequest"
+      responses:
+        "201":
+          description: Cliente criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cliente"
+
+  /clientes/{id}:
+    get:
+      operationId: buscarCliente
+      tags: [clientes]
+      summary: Busca cliente por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cliente encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cliente"
+    put:
+      operationId: atualizarCliente
+      tags: [clientes]
+      summary: Atualiza cliente
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarClienteRequest"
+      responses:
+        "200":
+          description: Cliente atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Cliente"
+    delete:
+      operationId: excluirCliente
+      tags: [clientes]
+      summary: Exclui cliente
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Excluído com sucesso
+
+  /contratos:
+    get:
+      operationId: listarContratos
+      tags: [contratos]
+      summary: Lista contratos
+      parameters:
+        - name: clienteId
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lista de contratos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Contrato"
+    post:
+      operationId: criarContrato
+      tags: [contratos]
+      summary: Cria contrato
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarContratoRequest"
+      responses:
+        "201":
+          description: Contrato criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contrato"
+
+  /contratos/{id}:
+    get:
+      operationId: buscarContrato
+      tags: [contratos]
+      summary: Busca contrato por ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Contrato encontrado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contrato"
+    put:
+      operationId: atualizarContrato
+      tags: [contratos]
+      summary: Atualiza contrato
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarContratoRequest"
+      responses:
+        "200":
+          description: Contrato atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Contrato"
+    delete:
+      operationId: excluirContrato
+      tags: [contratos]
+      summary: Exclui contrato
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Excluído com sucesso
+
+  /usuarios:
+    get:
+      operationId: listarUsuarios
+      tags: [usuarios]
+      summary: Lista usuários
+      responses:
+        "200":
+          description: Lista de usuários
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Usuario"
+    post:
+      operationId: criarUsuario
+      tags: [usuarios]
+      summary: Cria usuário
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarUsuarioRequest"
+      responses:
+        "201":
+          description: Usuário criado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+
+  /usuarios/{id}:
+    put:
+      operationId: atualizarUsuario
+      tags: [usuarios]
+      summary: Atualiza usuário
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CriarUsuarioRequest"
+      responses:
+        "200":
+          description: Usuário atualizado
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Usuario"
+    delete:
+      operationId: excluirUsuario
+      tags: [usuarios]
+      summary: Exclui usuário
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Excluído com sucesso
+
+  /integracoes:
+    get:
+      operationId: listarIntegracoes
+      tags: [integracoes]
+      summary: Lista configurações de integrações
+      responses:
+        "200":
+          description: Lista de integrações
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Integracao"
+    put:
+      operationId: salvarIntegracao
+      tags: [integracoes]
+      summary: Salva configuração de integração
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SalvarIntegracaoRequest"
+      responses:
+        "200":
+          description: Integração salva
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Integracao"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +463,421 @@ components:
       required:
         - status
 
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    DadosCnpj:
+      type: object
+      properties:
+        cnpj:
+          type: string
+        razaoSocial:
+          type: string
+        nomeFantasia:
+          type: string
+        situacao:
+          type: string
+        situacaoDescricao:
+          type: string
+        dataAbertura:
+          type: string
+        naturezaJuridica:
+          type: string
+        atividadePrincipal:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+        municipio:
+          type: string
+        uf:
+          type: string
+        cep:
+          type: string
+        telefone:
+          type: string
+        email:
+          type: string
+        capitalSocial:
+          type: string
+        socios:
+          type: array
+          items:
+            $ref: "#/components/schemas/Socio"
+      required:
+        - cnpj
+        - razaoSocial
+        - situacao
+
+    Socio:
+      type: object
+      properties:
+        nome:
+          type: string
+        qualificacao:
+          type: string
+        cpfCnpj:
+          type: string
+      required:
+        - nome
+        - qualificacao
+
+    ValidacaoCpf:
+      type: object
+      properties:
+        cpf:
+          type: string
+        valido:
+          type: boolean
+        nome:
+          type: string
+        situacao:
+          type: string
+      required:
+        - cpf
+        - valido
+
+    Escritorio:
+      type: object
+      properties:
+        id:
+          type: integer
+        tipo:
+          type: string
+          enum: [PJ, PF]
+        cnpj:
+          type: string
+        cpf:
+          type: string
+        razaoSocial:
+          type: string
+        nomeFantasia:
+          type: string
+        nomeResponsavel:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+        celular:
+          type: string
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+        municipio:
+          type: string
+        uf:
+          type: string
+        situacao:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - tipo
+
+    CriarEscritorioRequest:
+      type: object
+      properties:
+        tipo:
+          type: string
+          enum: [PJ, PF]
+        cnpj:
+          type: string
+        cpf:
+          type: string
+        razaoSocial:
+          type: string
+        nomeFantasia:
+          type: string
+        nomeResponsavel:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+        celular:
+          type: string
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+        municipio:
+          type: string
+        uf:
+          type: string
+        situacao:
+          type: string
+      required:
+        - tipo
+
+    Cliente:
+      type: object
+      properties:
+        id:
+          type: integer
+        escritorioId:
+          type: integer
+        tipo:
+          type: string
+          enum: [PJ, PF]
+        cnpj:
+          type: string
+        cpf:
+          type: string
+        razaoSocial:
+          type: string
+        nomeFantasia:
+          type: string
+        nomeResponsavel:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+        celular:
+          type: string
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+        municipio:
+          type: string
+        uf:
+          type: string
+        situacaoReceita:
+          type: string
+        socios:
+          type: string
+        regimeTributario:
+          type: string
+        atividadePrincipal:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - tipo
+
+    CriarClienteRequest:
+      type: object
+      properties:
+        escritorioId:
+          type: integer
+        tipo:
+          type: string
+          enum: [PJ, PF]
+        cnpj:
+          type: string
+        cpf:
+          type: string
+        razaoSocial:
+          type: string
+        nomeFantasia:
+          type: string
+        nomeResponsavel:
+          type: string
+        email:
+          type: string
+        telefone:
+          type: string
+        celular:
+          type: string
+        cep:
+          type: string
+        logradouro:
+          type: string
+        numero:
+          type: string
+        complemento:
+          type: string
+        bairro:
+          type: string
+        municipio:
+          type: string
+        uf:
+          type: string
+        situacaoReceita:
+          type: string
+        socios:
+          type: string
+        regimeTributario:
+          type: string
+        atividadePrincipal:
+          type: string
+      required:
+        - tipo
+
+    Contrato:
+      type: object
+      properties:
+        id:
+          type: integer
+        clienteId:
+          type: integer
+        numeroContrato:
+          type: string
+        valorContrato:
+          type: string
+        dataContrato:
+          type: string
+        diaVencimento:
+          type: integer
+        dataVencimento:
+          type: string
+        objeto:
+          type: string
+        status:
+          type: string
+          enum: [ativo, inativo, vencido, cancelado]
+        observacoes:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - clienteId
+        - numeroContrato
+
+    CriarContratoRequest:
+      type: object
+      properties:
+        clienteId:
+          type: integer
+        numeroContrato:
+          type: string
+        valorContrato:
+          type: string
+        dataContrato:
+          type: string
+        diaVencimento:
+          type: integer
+        dataVencimento:
+          type: string
+        objeto:
+          type: string
+        status:
+          type: string
+          enum: [ativo, inativo, vencido, cancelado]
+        observacoes:
+          type: string
+      required:
+        - clienteId
+        - numeroContrato
+
+    Usuario:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        email:
+          type: string
+        perfil:
+          type: string
+          enum: [admin, gerente, operador, visualizador]
+        ativo:
+          type: boolean
+        permissoes:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - nome
+        - email
+        - perfil
+
+    CriarUsuarioRequest:
+      type: object
+      properties:
+        nome:
+          type: string
+        email:
+          type: string
+        senha:
+          type: string
+        perfil:
+          type: string
+          enum: [admin, gerente, operador, visualizador]
+        ativo:
+          type: boolean
+        permissoes:
+          type: string
+      required:
+        - nome
+        - email
+        - perfil
+
+    Integracao:
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        tipo:
+          type: string
+        ativo:
+          type: boolean
+        config:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - nome
+        - tipo
+
+    SalvarIntegracaoRequest:
+      type: object
+      properties:
+        nome:
+          type: string
+        tipo:
+          type: string
+        ativo:
+          type: boolean
+        config:
+          type: string
+      required:
+        - nome
+        - tipo
