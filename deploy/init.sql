@@ -248,6 +248,20 @@ ALTER TABLE clientes ADD COLUMN IF NOT EXISTS senha_portal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ativo_portal BOOLEAN DEFAULT false;
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha TEXT;
 
+-- Garante que o usuário admin sempre existe com a senha correta
+INSERT INTO usuarios (nome, email, senha, perfil, ativo)
+VALUES (
+  'Administrador',
+  'xicocet@gmail.com',
+  '$2b$10$JjVzud9NPvIqzGBNt7No/uUIICO.lksj19BsZZNg2wii.AjJr11za',
+  'admin',
+  true
+)
+ON CONFLICT (email) DO UPDATE SET
+  senha  = '$2b$10$JjVzud9NPvIqzGBNt7No/uUIICO.lksj19BsZZNg2wii.AjJr11za',
+  perfil = 'admin',
+  ativo  = true;
+
 -- Auto-gera slug para escritórios sem slug (somente se ainda estiver NULL)
 DO $$
 DECLARE
