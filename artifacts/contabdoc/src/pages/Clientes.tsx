@@ -230,8 +230,23 @@ export default function ClientesPage() {
         setActiveTab("juridico");
       }
       queryClient.invalidateQueries({ queryKey: getListarClientesQueryKey() });
-    } catch {
-      toast({ title: "Erro ao salvar cliente", variant: "destructive" });
+    } catch (err: any) {
+      const status = err?.status ?? err?.response?.status;
+      const apiMsg = err?.data?.message ?? err?.message ?? "";
+      if (status === 409) {
+        toast({
+          title: "⚠️ Cliente já cadastrado",
+          description: apiMsg.replace(/^HTTP \d+ [^:]+: /, "") || "Este CNPJ/CPF já está cadastrado neste escritório.",
+          variant: "destructive",
+          duration: 7000,
+        });
+      } else {
+        toast({
+          title: "Erro ao salvar cliente",
+          description: apiMsg.replace(/^HTTP \d+ [^:]+: /, "") || "Verifique os dados e tente novamente.",
+          variant: "destructive",
+        });
+      }
     } finally { setIsSavingCliente(false); }
   };
 
