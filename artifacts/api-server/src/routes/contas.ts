@@ -22,11 +22,14 @@ router.post("/", async (req, res) => {
   try {
     const body = { ...req.body };
     delete body.id; delete body.createdAt; delete body.updatedAt;
+    if (!body.escritorioId) { res.status(400).json({ message: "Selecione um escritório antes de salvar" }); return; }
+    if (!body.descricao || String(body.descricao).trim() === "") { res.status(400).json({ message: "Informe a descrição da conta" }); return; }
     const rows = await db.insert(contasTable).values(body).returning();
     res.status(201).json(rows[0]);
-  } catch (err) {
+  } catch (err: any) {
     req.log.error({ err }, "Erro ao criar conta");
-    res.status(500).json({ message: "Erro interno" });
+    const detail = err?.cause?.message || err?.message || "";
+    res.status(500).json({ message: detail.slice(0, 120) || "Erro ao salvar conta" });
   }
 });
 

@@ -20,11 +20,15 @@ router.post("/", async (req, res) => {
   try {
     const body = { ...req.body };
     delete body.id; delete body.createdAt; delete body.updatedAt;
+    if (!body.escritorioId) { res.status(400).json({ message: "Selecione um escritório antes de salvar" }); return; }
+    if (!body.titulo || String(body.titulo).trim() === "") { res.status(400).json({ message: "Informe o título da proposta" }); return; }
+    if (!body.numero || String(body.numero).trim() === "") { body.numero = `PROP-${Date.now().toString().slice(-6)}`; }
     const rows = await db.insert(propostasTable).values(body).returning();
     res.status(201).json(rows[0]);
-  } catch (err) {
+  } catch (err: any) {
     req.log.error({ err }, "Erro ao criar proposta");
-    res.status(500).json({ message: "Erro interno" });
+    const detail = err?.cause?.message || err?.message || "";
+    res.status(500).json({ message: detail.slice(0, 120) || "Erro ao salvar proposta" });
   }
 });
 

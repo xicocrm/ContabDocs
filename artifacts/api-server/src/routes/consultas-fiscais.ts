@@ -20,11 +20,24 @@ router.post("/", async (req, res) => {
   try {
     const body = { ...req.body };
     delete body.id; delete body.createdAt; delete body.updatedAt;
+
+    if (!body.escritorioId) {
+      res.status(400).json({ message: "Selecione um escritório antes de salvar" }); return;
+    }
+    if (!body.tipo || String(body.tipo).trim() === "") {
+      res.status(400).json({ message: "Selecione o tipo de consulta fiscal" }); return;
+    }
+
     const rows = await db.insert(consultasFiscaisTable).values(body).returning();
     res.status(201).json(rows[0]);
-  } catch (err) {
+  } catch (err: any) {
     req.log.error({ err }, "Erro ao criar consulta");
-    res.status(500).json({ message: "Erro interno" });
+    const detail = err?.cause?.message || err?.message || "";
+    if (detail.includes("not-null")) {
+      res.status(400).json({ message: "Preencha todos os campos obrigatórios" });
+    } else {
+      res.status(500).json({ message: "Erro ao salvar consulta: " + detail.slice(0, 120) });
+    }
   }
 });
 

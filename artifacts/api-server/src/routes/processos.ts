@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, processosTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -20,11 +20,26 @@ router.post("/", async (req, res) => {
   try {
     const body = { ...req.body };
     delete body.id; delete body.createdAt; delete body.updatedAt;
+
+    if (!body.escritorioId) {
+      res.status(400).json({ message: "Selecione um escritório antes de salvar" }); return;
+    }
+
+    if (!body.numero || String(body.numero).trim() === "") {
+      const [{ c }] = await db.select({ c: sql<number>`count(*)` }).from(processosTable).where(eq(processosTable.escritorioId, parseInt(body.escritorioId)));
+      body.numero = `PROC-${String(Number(c) + 1).padStart(4, "0")}`;
+    }
+
     const rows = await db.insert(processosTable).values(body).returning();
     res.status(201).json(rows[0]);
-  } catch (err) {
+  } catch (err: any) {
     req.log.error({ err }, "Erro ao criar processo");
-    res.status(500).json({ message: "Erro interno" });
+    const detail = err?.cause?.message || err?.message || "";
+    if (detail.includes("not-null")) {
+      res.status(400).json({ message: "Preencha todos os campos obrigatórios" });
+    } else {
+      res.status(500).json({ message: "Erro ao salvar processo: " + detail.slice(0, 120) });
+    }
   }
 });
 
