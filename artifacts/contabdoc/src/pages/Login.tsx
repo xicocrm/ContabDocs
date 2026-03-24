@@ -15,7 +15,7 @@ export default function Login() {
   const [email, setEmail] = useState(() => localStorage.getItem("contabdoc_saved_email") || "");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [lembrar, setLembrar] = useState(() => !!localStorage.getItem("contabdoc_saved_email"));
+  const [lembrar, setLembrar] = useState(true);
   const [enviando, setEnviando] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
 
@@ -29,10 +29,10 @@ export default function Login() {
     setEnviando(true);
     try {
       await login(email.trim(), senha, lembrar);
-      setLocation("/");
+      const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+      window.location.href = base + "/";
     } catch (err: any) {
       toast({ title: "Falha no login", description: err.message, variant: "destructive" });
-    } finally {
       setEnviando(false);
     }
   };
