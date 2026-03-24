@@ -78,7 +78,15 @@ export default function EscritorioPage() {
   };
 
   const openEdit = (e: Escritorio) => {
-    setForm({ ...emptyEscritorio, ...e });
+    setForm({
+      ...emptyEscritorio,
+      ...e,
+      cnpj: e.cnpj ? formatters.cnpj(e.cnpj) : "",
+      cpf: e.cpf ? formatters.cpf(e.cpf) : "",
+      telefone: e.telefone ? formatters.phone(e.telefone) : "",
+      celular: e.celular ? formatters.phone(e.celular) : "",
+      cep: e.cep ? formatters.cep(e.cep) : "",
+    });
     setEscritorioId(e.id);
     setView("detail");
   };
@@ -172,8 +180,9 @@ export default function EscritorioPage() {
         toast({ title: "✓ Escritório cadastrado!" });
       }
       queryClient.invalidateQueries({ queryKey: getListarEscritoriosQueryKey() });
-    } catch {
-      toast({ title: "Erro ao salvar", variant: "destructive" });
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Erro ao salvar";
+      toast({ title: msg, variant: "destructive" });
     } finally { setIsSaving(false); }
   };
 
