@@ -10,3 +10,4 @@ export * from "./processos";
 export * from "./protocolos";
 export * from "./campanhas";
 export * from "./consultas-fiscais";
+export * from "./portal-arquivos";

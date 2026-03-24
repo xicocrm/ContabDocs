@@ -31,7 +31,7 @@ const emptyEscritorio = {
   tipo: "PJ", cnpj: "", cpf: "", razaoSocial: "", nomeFantasia: "",
   nomeResponsavel: "", email: "", telefone: "", celular: "",
   cep: "", logradouro: "", numero: "", complemento: "",
-  bairro: "", municipio: "", uf: "", situacao: ""
+  bairro: "", municipio: "", uf: "", situacao: "", slug: ""
 };
 
 function SituacaoBadge({ situacao }: { situacao?: string | null }) {
@@ -278,6 +278,30 @@ export default function EscritorioPage() {
                 <div className="space-y-2">
                   <Label>Celular / WhatsApp</Label>
                   <Input name="celular" value={form.celular} onChange={handleChange} placeholder="(00) 00000-0000" className="bg-background" maxLength={15} />
+                </div>
+              </div>
+
+              {/* Portal */}
+              <div className="pt-4 border-t border-border/50">
+                <Label className="text-muted-foreground text-xs uppercase tracking-wider mb-4 block">Portal do Cliente</Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Slug do Portal</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">/portal/</span>
+                      <Input
+                        name="slug"
+                        value={form.slug}
+                        onChange={(e) => {
+                          const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                          setForm((p: any) => ({ ...p, slug: v }));
+                        }}
+                        placeholder="meu-escritorio"
+                        className="bg-background pl-16 font-mono"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Apenas letras minúsculas, números e hífens. Ex: silva-contabilidade</p>
+                  </div>
                 </div>
               </div>
 

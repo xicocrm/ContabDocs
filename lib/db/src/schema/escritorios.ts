@@ -21,6 +21,7 @@ export const escritoriosTable = pgTable("escritorios", {
   municipio: text("municipio"),
   uf: text("uf"),
   situacao: text("situacao"),
+  slug: text("slug").unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

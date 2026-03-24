@@ -3,10 +3,11 @@ import { Link, useLocation } from "wouter";
 import {
   Building2, Users, Settings, LayoutDashboard, Menu, LogOut, Bell,
   DollarSign, Handshake, FileText, FileCheck, Scale, ClipboardList,
-  Megaphone, Receipt, ChevronDown, X
+  Megaphone, Receipt, ChevronDown, X, FolderOpen
 } from "lucide-react";
 import { APP_VERSION } from "@/lib/version";
 import { useEscritorio } from "@/contexts/EscritorioContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +16,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 interface AppLayoutProps {
   children: React.ReactNode;
   title: string;
+  icon?: React.ReactNode;
 }
 
 type NavSection = {
@@ -59,6 +61,12 @@ const navSections: NavSection[] = [
     ],
   },
   {
+    label: "Portal",
+    items: [
+      { href: "/portal-gerenciar", label: "Portal do Cliente", icon: FolderOpen },
+    ],
+  },
+  {
     label: "Sistema",
     items: [
       { href: "/configuracoes", label: "Configurações",    icon: Settings },
@@ -66,10 +74,11 @@ const navSections: NavSection[] = [
   },
 ];
 
-export function AppLayout({ children, title }: AppLayoutProps) {
+export function AppLayout({ children, title, icon }: AppLayoutProps) {
   const [location] = useLocation();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { escritorioId, escritorioNome, clearEscritorio } = useEscritorio();
+  const { user, logout } = useAuth();
 
   const NavLinks = ({ onClose }: { onClose?: () => void }) => (
     <div className="flex flex-col gap-1">
@@ -152,10 +161,19 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         </div>
 
         <div className="p-4 border-t border-border/50 space-y-1">
-          <div className="flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-secondary transition-colors cursor-pointer text-muted-foreground hover:text-white">
+          {user && (
+            <div className="px-4 py-2 mb-1">
+              <p className="text-xs font-medium text-foreground truncate">{user.nome}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{user.email}</p>
+            </div>
+          )}
+          <button
+            onClick={logout}
+            className="w-full flex items-center space-x-3 px-4 py-2.5 rounded-xl hover:bg-secondary transition-colors cursor-pointer text-muted-foreground hover:text-white"
+          >
             <LogOut className="w-4 h-4" />
             <span className="text-sm">Sair</span>
-          </div>
+          </button>
           <p className="text-center text-[10px] text-muted-foreground/40 pt-1">v{APP_VERSION}</p>
         </div>
       </aside>

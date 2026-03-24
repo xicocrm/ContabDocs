@@ -13,10 +13,14 @@ import processosRouter from "./processos";
 import protocolosRouter from "./protocolos";
 import campanhasRouter from "./campanhas";
 import consultasFiscaisRouter from "./consultas-fiscais";
+import authRouter from "./auth";
+import portalRouter from "./portal";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use("/auth", authRouter);
+router.use("/portal", portalRouter);
 router.use("/receita", receitaRouter);
 router.use("/escritorios", escritoriosRouter);
 router.use("/clientes", clientesRouter);

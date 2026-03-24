@@ -129,6 +129,27 @@ CREATE TABLE IF NOT EXISTS consultas_fiscais (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
-  -- Add codigo_cliente to clientes table
-  ALTER TABLE clientes ADD COLUMN IF NOT EXISTS codigo_cliente TEXT;
+-- Add codigo_cliente to clientes table
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS codigo_cliente TEXT;
+
+-- v2.1 - Auth + Portal do Cliente
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS email_portal TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS senha_portal TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ativo_portal BOOLEAN DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS portal_arquivos (
+  id SERIAL PRIMARY KEY,
+  escritorio_id INTEGER NOT NULL,
+  cliente_id INTEGER,
+  nome TEXT NOT NULL,
+  tipo_arquivo TEXT,
+  tamanho TEXT,
+  descricao TEXT,
+  caminho TEXT NOT NULL,
+  enviado_por TEXT NOT NULL DEFAULT 'cliente',
+  status TEXT NOT NULL DEFAULT 'ativo',
+  created_at TIMESTAMP NOT NULL DEFAULT now(),
+  updated_at TIMESTAMP NOT NULL DEFAULT now()
+);
   

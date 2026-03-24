@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { db, clientesTable } from "@workspace/db";
 import { eq, or, and } from "drizzle-orm";
+import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
@@ -54,8 +55,10 @@ router.post("/", async (req, res) => {
         return;
       }
     }
+    if (body.senhaPortal) body.senhaPortal = await bcrypt.hash(body.senhaPortal, 10);
     const rows = await db.insert(clientesTable).values(body).returning();
-    res.status(201).json(rows[0]);
+    const { senhaPortal: _s, ...safe } = rows[0] as any;
+    res.status(201).json(safe);
   } catch (err) {
     req.log.error({ err }, "Erro ao criar cliente");
     res.status(500).json({ message: "Erro interno" });
@@ -70,12 +73,18 @@ router.put("/:id", async (req, res) => {
     delete body.id;
     delete body.createdAt;
     delete body.updatedAt;
+    if (body.senhaPortal) {
+      body.senhaPortal = await bcrypt.hash(body.senhaPortal, 10);
+    } else {
+      delete body.senhaPortal;
+    }
     const rows = await db.update(clientesTable)
       .set({ ...body, updatedAt: new Date() })
       .where(eq(clientesTable.id, id))
       .returning();
     if (!rows[0]) { res.status(404).json({ message: "Não encontrado" }); return; }
-    res.json(rows[0]);
+    const { senhaPortal: _s, ...safe } = rows[0] as any;
+    res.json(safe);
   } catch (err) {
     req.log.error({ err }, "Erro ao atualizar cliente");
     res.status(500).json({ message: "Erro interno" });

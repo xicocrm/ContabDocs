@@ -52,15 +52,42 @@ artifacts-monorepo/
 - `GET/POST/PUT/DELETE /api/escritorios` — CRUD escritórios
 - `GET/POST/PUT/DELETE /api/clientes` — CRUD clientes
 - `GET/POST/PUT/DELETE /api/contratos` — CRUD contratos
-- `GET/POST/PUT/DELETE /api/usuarios` — CRUD usuários
+- `GET/POST/PUT/DELETE /api/usuarios` — CRUD usuários (passwords hashed with bcrypt)
 - `GET/PUT /api/integracoes` — configurações de integrações
+- `POST /api/auth/login` — autenticação JWT (email + senha)
+- `GET /api/auth/me` — dados do usuário autenticado
+- `GET /api/auth/check-setup` — verifica se admin precisa de setup inicial
+- `POST /api/auth/setup` — cria primeiro usuário admin
+- `PUT /api/auth/senha` — altera senha do usuário logado
+- `POST /api/portal/login` — login do cliente no portal (slug + email + senha)
+- `GET /api/portal/arquivos` — lista arquivos do cliente no portal
+- `POST /api/portal/upload` — cliente envia arquivo ao portal
+- `GET /api/portal/download/:id` — download de arquivo
+- `GET /api/portal/escritorio/arquivos` — back-office: lista arquivos
+- `POST /api/portal/escritorio/upload` — back-office: envia arquivo ao cliente
+- `DELETE /api/portal/arquivos/:id` — exclui arquivo
+- `GET /api/portal/info/:slug` — info pública do portal
+
+### Authentication
+- JWT tokens, expiry 8h (app) / 12h (portal)
+- Secret: `JWT_SECRET` env var (fallback: hardcoded dev secret)
+- Frontend: token stored in `localStorage` as `contabdoc_token`
+- Protected routes redirect to `/login` if not authenticated
+- Setup wizard on first run if no users with passwords exist
+
+### Portal do Cliente
+- Each escritório has a `slug` field for portal URL: `/portal/:slug`
+- Clients access: `/portal/:slug` (login) → `/portal/:slug/dashboard`
+- Back-office management: `/portal-gerenciar` (new sidebar item)
+- File uploads stored in `uploads/` dir (configurable via `UPLOADS_DIR`)
 
 ### Database Tables
-- `escritorios` — dados do escritório contábil
-- `clientes` — clientes PJ/PF
+- `escritorios` — dados do escritório contábil (+ slug)
+- `clientes` — clientes PJ/PF (+ emailPortal, senhaPortal hash, ativoPortal)
 - `contratos` — contratos jurídicos
-- `usuarios` — usuários do sistema
+- `usuarios` — usuários do sistema (senha: bcrypt hash)
 - `integracoes` — configurações de integrações (Wavoip, FalePaco, Whatiket, Asaas, Inter, Efi, Mercado Pago, PagBank, Caixa, Bradesco, Itaú)
+- `portal_arquivos` — arquivos trocados entre escritório e clientes
 
 ## Field Masks
 - CNPJ: `XX.XXX.XXX/XXXX-XX`

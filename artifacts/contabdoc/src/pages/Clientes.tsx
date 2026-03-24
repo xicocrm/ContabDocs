@@ -34,14 +34,15 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2, Plus, Search, Edit, Trash2, Building2, User, ArrowLeft,
-  FileText, CheckCircle, AlertCircle, DollarSign, Calendar, MapPin
+  FileText, CheckCircle, AlertCircle, DollarSign, Calendar, MapPin, FolderOpen
 } from "lucide-react";
 
 const emptyCliente = {
   tipo: 'PJ', cnpj: '', cpf: '', razaoSocial: '', nomeFantasia: '', nomeResponsavel: '',
   email: '', telefone: '', celular: '', cep: '', logradouro: '', numero: '', complemento: '',
   bairro: '', municipio: '', uf: '', situacaoReceita: '', socios: '', regimeTributario: '',
-  atividadePrincipal: '', codigoCliente: ''
+  atividadePrincipal: '', codigoCliente: '',
+  emailPortal: '', senhaPortal: '', ativoPortal: false
 };
 
 function gerarCodigoCliente(total: number) {
@@ -330,6 +331,9 @@ export default function ClientesPage() {
                 {contratos.length > 0 && (
                   <Badge className="ml-2 bg-primary/20 text-primary text-xs h-5 px-1.5">{contratos.length}</Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="portal" className="data-[state=active]:bg-primary data-[state=active]:text-white px-6">
+                <FolderOpen className="w-4 h-4 mr-2" /> Portal
               </TabsTrigger>
             </TabsList>
 
@@ -637,6 +641,76 @@ export default function ClientesPage() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            {/* ── PORTAL DO CLIENTE ── */}
+            <TabsContent value="portal" className="mt-6">
+              <Card className="bg-card border-border/50">
+                <CardContent className="pt-6 space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-white flex items-center gap-2"><FolderOpen className="w-4 h-4 text-primary" /> Acesso ao Portal</h3>
+                      <p className="text-sm text-muted-foreground mt-1">Configure o acesso do cliente ao portal de documentos online</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-muted-foreground">Portal ativo</span>
+                      <button
+                        type="button"
+                        onClick={() => setClienteForm((p: any) => ({ ...p, ativoPortal: !p.ativoPortal }))}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${clienteForm.ativoPortal ? 'bg-primary' : 'bg-secondary'}`}
+                      >
+                        <span className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${clienteForm.ativoPortal ? 'translate-x-6' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {!clienteForm.ativoPortal && (
+                    <div className="bg-secondary/50 border border-border/50 rounded-lg p-4 text-sm text-muted-foreground">
+                      ⚠️ O acesso ao portal está desativado para este cliente. Ative acima para liberar o acesso.
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>E-mail do portal</Label>
+                      <Input
+                        name="emailPortal"
+                        type="email"
+                        value={clienteForm.emailPortal || ''}
+                        onChange={handleClienteChange}
+                        placeholder="email@cliente.com.br"
+                        className="bg-background"
+                        disabled={!clienteForm.ativoPortal}
+                      />
+                      <p className="text-xs text-muted-foreground">E-mail que o cliente usará para entrar no portal</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Senha do portal</Label>
+                      <Input
+                        name="senhaPortal"
+                        type="password"
+                        value={clienteForm.senhaPortal || ''}
+                        onChange={handleClienteChange}
+                        placeholder={clienteId ? "Deixe em branco para manter a atual" : "Defina uma senha"}
+                        className="bg-background"
+                        disabled={!clienteForm.ativoPortal}
+                      />
+                      <p className="text-xs text-muted-foreground">Senha de acesso ao portal</p>
+                    </div>
+                  </div>
+
+                  {clienteForm.ativoPortal && (
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
+                      <p className="text-sm text-blue-300 font-medium">Como o cliente acessa o portal?</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        O cliente acessa via: <span className="font-mono text-blue-400">[sistema]/portal/[slug-do-escritório]</span>
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">Configure o slug do escritório em: <strong>Escritórios → Editar → campo "Slug do Portal"</strong></p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
           </Tabs>
         </div>
 
