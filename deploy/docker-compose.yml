@@ -1,0 +1,85 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: contabdoc_db
+    restart: always
+    environment:
+      POSTGRES_DB: contabdoc
+      POSTGRES_USER: contabdoc
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U contabdoc -d contabdoc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - contabdoc_net
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: contabdoc_migrate
+    working_dir: /app
+    command: >
+      sh -c "
+        echo 'Aguardando banco...' &&
+        sleep 3 &&
+        pnpm --filter @workspace/db run push &&
+        echo '✓ Migrations concluídas!'
+      "
+    environment:
+      DATABASE_URL: postgres://contabdoc:${DB_PASSWORD}@db:5432/contabdoc
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - contabdoc_net
+    restart: "no"
+
+  api:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.api
+    container_name: contabdoc_api
+    restart: always
+    environment:
+      DATABASE_URL: postgres://contabdoc:${DB_PASSWORD}@db:5432/contabdoc
+      PORT: 3001
+      NODE_ENV: production
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - contabdoc_net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3001/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  web:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.web
+    container_name: contabdoc_web
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - contabdoc_net
+
+volumes:
+  postgres_data:
+
+networks:
+  contabdoc_net:
+    driver: bridge
