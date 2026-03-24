@@ -153,7 +153,10 @@ export function AppLayout({ children, title, icon }: AppLayoutProps) {
           <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-indigo-500 flex items-center justify-center shadow-md shadow-primary/30 shrink-0">
             <span className="text-white text-xs font-black">C</span>
           </div>
-          <span className="text-base font-bold tracking-tight text-white">Contab<span className="text-primary">DOC</span></span>
+          <div className="flex flex-col leading-none">
+            <span className="text-base font-bold tracking-tight text-white">Contab<span className="text-primary">DOC</span></span>
+            <span className="text-[9px] font-semibold text-amber-400 tracking-widest uppercase mt-0.5">v 1.0</span>
+          </div>
         </div>
 
         <EscritorioIndicator />
@@ -203,7 +206,10 @@ export function AppLayout({ children, title, icon }: AppLayoutProps) {
                   <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary to-indigo-500 flex items-center justify-center shadow-md shadow-primary/30 shrink-0">
                     <span className="text-white text-xs font-black">C</span>
                   </div>
-                  <span className="text-base font-bold tracking-tight text-white">Contab<span className="text-primary">DOC</span></span>
+                  <div className="flex flex-col leading-none">
+                    <span className="text-base font-bold tracking-tight text-white">Contab<span className="text-primary">DOC</span></span>
+                    <span className="text-[9px] font-semibold text-amber-400 tracking-widest uppercase mt-0.5">v 1.0</span>
+                  </div>
                 </div>
                 <div className="px-0 pt-3">
                   <EscritorioIndicator />
