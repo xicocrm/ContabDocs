@@ -29,7 +29,11 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const rows = await db.insert(escritoriosTable).values(req.body).returning();
+    const body = { ...req.body };
+    delete body.id;
+    delete body.createdAt;
+    delete body.updatedAt;
+    const rows = await db.insert(escritoriosTable).values(body).returning();
     res.status(201).json(rows[0]);
   } catch (err) {
     req.log.error({ err }, "Erro ao criar escritório");
@@ -42,9 +46,9 @@ router.put("/:id", async (req, res) => {
   if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
   try {
     const body = { ...req.body };
-    for (const f of ["createdAt", "updatedAt"]) {
-      if (body[f] && typeof body[f] === "string") body[f] = new Date(body[f]);
-    }
+    delete body.id;
+    delete body.createdAt;
+    delete body.updatedAt;
     const rows = await db.update(escritoriosTable)
       .set({ ...body, updatedAt: new Date() })
       .where(eq(escritoriosTable.id, id))

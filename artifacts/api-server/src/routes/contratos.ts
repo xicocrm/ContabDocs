@@ -36,7 +36,11 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const rows = await db.insert(contratosTable).values(req.body).returning();
+    const body = { ...req.body };
+    if (!body.numeroContrato) { res.status(400).json({ message: "Número do contrato é obrigatório" }); return; }
+    delete body.createdAt;
+    delete body.updatedAt;
+    const rows = await db.insert(contratosTable).values(body).returning();
     res.status(201).json(rows[0]);
   } catch (err) {
     req.log.error({ err }, "Erro ao criar contrato");
@@ -49,10 +53,9 @@ router.put("/:id", async (req, res) => {
   if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
   try {
     const body = { ...req.body };
-    const dateFields = ["dataInicio", "dataVencimento", "dataRenovacao", "createdAt", "updatedAt"];
-    for (const f of dateFields) {
-      if (body[f] && typeof body[f] === "string") body[f] = new Date(body[f]);
-    }
+    delete body.id;
+    delete body.createdAt;
+    delete body.updatedAt;
     const rows = await db.update(contratosTable)
       .set({ ...body, updatedAt: new Date() })
       .where(eq(contratosTable.id, id))

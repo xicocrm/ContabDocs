@@ -36,7 +36,11 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const rows = await db.insert(clientesTable).values(req.body).returning();
+    const body = { ...req.body };
+    delete body.id;
+    delete body.createdAt;
+    delete body.updatedAt;
+    const rows = await db.insert(clientesTable).values(body).returning();
     res.status(201).json(rows[0]);
   } catch (err) {
     req.log.error({ err }, "Erro ao criar cliente");
@@ -49,12 +53,9 @@ router.put("/:id", async (req, res) => {
   if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
   try {
     const body = { ...req.body };
-    const dateFields = ["dataNascimento", "dataAbertura", "createdAt", "updatedAt"];
-    for (const field of dateFields) {
-      if (body[field] && typeof body[field] === "string") {
-        body[field] = new Date(body[field]);
-      }
-    }
+    delete body.id;
+    delete body.createdAt;
+    delete body.updatedAt;
     const rows = await db.update(clientesTable)
       .set({ ...body, updatedAt: new Date() })
       .where(eq(clientesTable.id, id))
