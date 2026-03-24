@@ -12,13 +12,15 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
-  const [email, setEmail] = useState(() => localStorage.getItem("contabdoc_saved_email") || "");
-  const [senha, setSenha] = useState("");
-  const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [lembrar, setLembrar] = useState(() => {
-    const saved = localStorage.getItem("contabdoc_lembrar");
-    return saved === null ? true : saved === "true";
-  });
+  const lembrarSalvo = () => {
+    const s = localStorage.getItem("contabdoc_lembrar");
+    return s === null ? true : s === "true";
+  };
+
+  const [lembrar, setLembrar] = useState(lembrarSalvo);
+  const [email, setEmail] = useState(() => lembrarSalvo() ? (localStorage.getItem("contabdoc_saved_email") || "") : "");
+  const [senha, setSenha] = useState(() => lembrarSalvo() ? (localStorage.getItem("contabdoc_saved_senha") || "") : "");
+  const [mostrarSenha, setMostrarSenha] = useState(() => lembrarSalvo() && !!localStorage.getItem("contabdoc_saved_senha"));
   const [enviando, setEnviando] = useState(false);
   const [checkingSetup, setCheckingSetup] = useState(true);
 
@@ -27,11 +29,29 @@ export default function Login() {
     checkSetup().finally(() => setCheckingSetup(false));
   }, [user]);
 
+  const toggleLembrar = () => {
+    const v = !lembrar;
+    setLembrar(v);
+    localStorage.setItem("contabdoc_lembrar", String(v));
+    if (!v) {
+      localStorage.removeItem("contabdoc_saved_email");
+      localStorage.removeItem("contabdoc_saved_senha");
+      setMostrarSenha(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setEnviando(true);
     try {
       await login(email.trim(), senha, lembrar);
+      if (lembrar) {
+        localStorage.setItem("contabdoc_saved_email", email.trim().toLowerCase());
+        localStorage.setItem("contabdoc_saved_senha", senha);
+      } else {
+        localStorage.removeItem("contabdoc_saved_email");
+        localStorage.removeItem("contabdoc_saved_senha");
+      }
       const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
       window.location.href = base + "/";
     } catch (err: any) {
@@ -112,7 +132,7 @@ export default function Login() {
                 type="button"
                 role="checkbox"
                 aria-checked={lembrar}
-                onClick={() => { const v = !lembrar; setLembrar(v); localStorage.setItem("contabdoc_lembrar", String(v)); }}
+                onClick={toggleLembrar}
                 className={`w-4 h-4 rounded border flex items-center justify-center shrink-0 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 focus:ring-offset-[#1a1d27] ${
                   lembrar ? "bg-blue-600 border-blue-600" : "bg-[#0f1117] border-white/20 hover:border-white/40"
                 }`}
@@ -124,7 +144,7 @@ export default function Login() {
                 )}
               </button>
               <span
-                onClick={() => { const v = !lembrar; setLembrar(v); localStorage.setItem("contabdoc_lembrar", String(v)); }}
+                onClick={toggleLembrar}
                 className="text-sm text-gray-400 cursor-pointer select-none hover:text-gray-300 transition-colors"
               >
                 Lembrar-me neste dispositivo
