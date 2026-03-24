@@ -20,21 +20,19 @@ services:
       - contabdoc_net
 
   migrate:
-    build:
-      context: ..
-      dockerfile: deploy/Dockerfile.api
+    image: postgres:16-alpine
     container_name: contabdoc_migrate
-    working_dir: /app
     command: >
       sh -c "
         echo 'Aguardando banco...' &&
         sleep 3 &&
-        pnpm --filter @workspace/db run push &&
+        PGPASSWORD=${DB_PASSWORD} psql -h db -U contabdoc -d contabdoc -f /migrate/init.sql &&
         echo '✓ Migrations concluídas!'
       "
     environment:
-      DATABASE_URL: postgres://contabdoc:${DB_PASSWORD}@db:5432/contabdoc
-      NODE_ENV: production
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - ./init.sql:/migrate/init.sql:ro
     depends_on:
       db:
         condition: service_healthy
@@ -52,6 +50,10 @@ services:
       DATABASE_URL: postgres://contabdoc:${DB_PASSWORD}@db:5432/contabdoc
       PORT: 3001
       NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:-contabdoc-jwt-secret-2025}
+      UPLOADS_DIR: /app/uploads
+    volumes:
+      - uploads_data:/app/uploads
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -79,6 +81,7 @@ services:
 
 volumes:
   postgres_data:
+  uploads_data:
 
 networks:
   contabdoc_net:
