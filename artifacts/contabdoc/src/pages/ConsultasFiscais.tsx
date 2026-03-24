@@ -80,6 +80,92 @@ const ICMS_RATES: Record<string, number> = {
   MG:18, PA:19, PB:18, PR:19, PE:18, PI:21, RJ:20, RN:18, RS:17, RO:17.5, RR:17, SC:17, SP:18, SE:19, TO:17,
 };
 
+// ── Regime Previdenciário ──────────────────────────────────────────────────────
+// Grau de risco por prefixo CNAE (2 dígitos) → RAT básico (%)
+const RAT_GRAU: Record<string, { grau: number; rat: number; desc: string }> = {
+  "01":{grau:3,rat:3,desc:"Graus de risco 3 – Agricultura"}, "02":{grau:3,rat:3,desc:"Grau 3 – Silvicultura"}, "03":{grau:3,rat:3,desc:"Grau 3 – Pesca"},
+  "05":{grau:3,rat:3,desc:"Grau 3 – Extração de carvão"}, "06":{grau:3,rat:3,desc:"Grau 3 – Ext. petróleo"}, "07":{grau:3,rat:3,desc:"Grau 3 – Mineração"}, "08":{grau:3,rat:3,desc:"Grau 3 – Ext. minerais não-metálicos"}, "09":{grau:3,rat:3,desc:"Grau 3 – Serviços de apoio à extração"},
+  "10":{grau:2,rat:2,desc:"Grau 2 – Ind. de alimentos"}, "11":{grau:2,rat:2,desc:"Grau 2 – Bebidas"}, "12":{grau:3,rat:3,desc:"Grau 3 – Tabaco"}, "13":{grau:2,rat:2,desc:"Grau 2 – Têxtil"}, "14":{grau:2,rat:2,desc:"Grau 2 – Confecções"}, "15":{grau:2,rat:2,desc:"Grau 2 – Couros"}, "16":{grau:2,rat:2,desc:"Grau 2 – Madeira"}, "17":{grau:2,rat:2,desc:"Grau 2 – Celulose/Papel"}, "18":{grau:2,rat:2,desc:"Grau 2 – Gráfica"}, "19":{grau:3,rat:3,desc:"Grau 3 – Petróleo/Coque"},
+  "20":{grau:3,rat:3,desc:"Grau 3 – Produtos químicos"}, "21":{grau:2,rat:2,desc:"Grau 2 – Farmacêuticos"}, "22":{grau:2,rat:2,desc:"Grau 2 – Borracha/Plástico"}, "23":{grau:3,rat:3,desc:"Grau 3 – Min. não-metálicos"}, "24":{grau:3,rat:3,desc:"Grau 3 – Metalurgia"}, "25":{grau:3,rat:3,desc:"Grau 3 – Prod. de metal"}, "26":{grau:2,rat:2,desc:"Grau 2 – Informática/eletrônicos"}, "27":{grau:2,rat:2,desc:"Grau 2 – Equipamentos elétricos"}, "28":{grau:3,rat:3,desc:"Grau 3 – Máquinas e equipamentos"}, "29":{grau:3,rat:3,desc:"Grau 3 – Veículos"}, "30":{grau:3,rat:3,desc:"Grau 3 – Outros transportes"},
+  "31":{grau:2,rat:2,desc:"Grau 2 – Móveis"}, "32":{grau:2,rat:2,desc:"Grau 2 – Produtos diversos"}, "33":{grau:3,rat:3,desc:"Grau 3 – Manutenção de máquinas"},
+  "35":{grau:3,rat:3,desc:"Grau 3 – Elet/gás/vapor"}, "36":{grau:2,rat:2,desc:"Grau 2 – Água/saneamento"}, "37":{grau:3,rat:3,desc:"Grau 3 – Esgoto"}, "38":{grau:3,rat:3,desc:"Grau 3 – Resíduos"}, "39":{grau:3,rat:3,desc:"Grau 3 – Descontaminação"},
+  "41":{grau:3,rat:3,desc:"Grau 3 – Construção de edifícios"}, "42":{grau:3,rat:3,desc:"Grau 3 – Obras de infraestrutura"}, "43":{grau:3,rat:3,desc:"Grau 3 – Serviços especializados de construção"},
+  "45":{grau:1,rat:1,desc:"Grau 1 – Comércio de veículos"}, "46":{grau:1,rat:1,desc:"Grau 1 – Comércio atacadista"}, "47":{grau:1,rat:1,desc:"Grau 1 – Comércio varejista"},
+  "49":{grau:2,rat:2,desc:"Grau 2 – Transp. terrestre"}, "50":{grau:2,rat:2,desc:"Grau 2 – Transp. aquaviário"}, "51":{grau:1,rat:1,desc:"Grau 1 – Transp. aéreo"}, "52":{grau:2,rat:2,desc:"Grau 2 – Armazenamento/logística"}, "53":{grau:1,rat:1,desc:"Grau 1 – Correios"},
+  "55":{grau:1,rat:1,desc:"Grau 1 – Alojamento"}, "56":{grau:1,rat:1,desc:"Grau 1 – Alimentação"},
+  "58":{grau:1,rat:1,desc:"Grau 1 – Edição"}, "59":{grau:1,rat:1,desc:"Grau 1 – Cinema/som/vídeo"}, "60":{grau:1,rat:1,desc:"Grau 1 – Rádio/TV"}, "61":{grau:1,rat:1,desc:"Grau 1 – Telecomunicações"}, "62":{grau:1,rat:1,desc:"Grau 1 – TI / Software"}, "63":{grau:1,rat:1,desc:"Grau 1 – Serviços de informação"},
+  "64":{grau:1,rat:1,desc:"Grau 1 – Financeiro"}, "65":{grau:1,rat:1,desc:"Grau 1 – Seguros"}, "66":{grau:1,rat:1,desc:"Grau 1 – Aux. financeiro"},
+  "68":{grau:1,rat:1,desc:"Grau 1 – Imóveis"},
+  "69":{grau:1,rat:1,desc:"Grau 1 – Jurídico/Contabilidade"}, "70":{grau:1,rat:1,desc:"Grau 1 – Gestão empresarial"}, "71":{grau:1,rat:1,desc:"Grau 1 – Arquitetura/Engenharia"}, "72":{grau:1,rat:1,desc:"Grau 1 – P&D"}, "73":{grau:1,rat:1,desc:"Grau 1 – Publicidade"}, "74":{grau:1,rat:1,desc:"Grau 1 – Profissional especializado"}, "75":{grau:1,rat:1,desc:"Grau 1 – Veterinária"},
+  "77":{grau:1,rat:1,desc:"Grau 1 – Locação e leasing"}, "78":{grau:1,rat:1,desc:"Grau 1 – Seleção de pessoal"}, "79":{grau:1,rat:1,desc:"Grau 1 – Agências de viagem"}, "80":{grau:1,rat:1,desc:"Grau 1 – Vigilância/segurança"}, "81":{grau:2,rat:2,desc:"Grau 2 – Serviços de limpeza"}, "82":{grau:1,rat:1,desc:"Grau 1 – Serviços administrativos"},
+  "84":{grau:1,rat:1,desc:"Grau 1 – Administração pública"},
+  "85":{grau:1,rat:1,desc:"Grau 1 – Educação"},
+  "86":{grau:1,rat:1,desc:"Grau 1 – Saúde humana"}, "87":{grau:2,rat:2,desc:"Grau 2 – Residenciais de saúde"}, "88":{grau:1,rat:1,desc:"Grau 1 – Serviços sociais"},
+  "90":{grau:1,rat:1,desc:"Grau 1 – Artes/espetáculos"}, "91":{grau:1,rat:1,desc:"Grau 1 – Bibliotecas/museus"}, "92":{grau:1,rat:1,desc:"Grau 1 – Jogos/apostas"}, "93":{grau:1,rat:1,desc:"Grau 1 – Esporte/recreação"},
+  "94":{grau:1,rat:1,desc:"Grau 1 – Atividades associativas"}, "95":{grau:1,rat:1,desc:"Grau 1 – Manutenção pessoal"}, "96":{grau:1,rat:1,desc:"Grau 1 – Serviços pessoais"}, "97":{grau:1,rat:1,desc:"Grau 1 – Domésticos"}, "99":{grau:1,rat:1,desc:"Grau 1 – Org. internacionais"},
+};
+
+interface FpasEntry { fpas: string; descricao: string; entidades: { entidade: string; aliquota: number }[] }
+
+const FPAS_TABLE: { prefixes: string[]; entry: FpasEntry }[] = [
+  { prefixes:["41","42","43"], entry:{ fpas:"655", descricao:"Construção civil", entidades:[{entidade:"SESI",aliquota:1.5},{entidade:"SENAI",aliquota:1.0},{entidade:"INCRA",aliquota:0.2},{entidade:"SEBRAE",aliquota:0.6},{entidade:"Salário Educação",aliquota:2.5}] } },
+  { prefixes:["49","50","52","53"], entry:{ fpas:"868", descricao:"Transporte rodoviário e afins", entidades:[{entidade:"SEST",aliquota:1.5},{entidade:"SENAT",aliquota:1.0},{entidade:"INCRA",aliquota:0.2},{entidade:"SEBRAE",aliquota:0.6},{entidade:"Salário Educação",aliquota:2.5}] } },
+  { prefixes:["01","02","03"], entry:{ fpas:"604", descricao:"Agropecuária", entidades:[{entidade:"SENAR",aliquota:2.5},{entidade:"INCRA",aliquota:0.2},{entidade:"Salário Educação",aliquota:2.5}] } },
+  { prefixes:["64","65","66"], entry:{ fpas:"574", descricao:"Financeiro/Seguros", entidades:[{entidade:"INCRA",aliquota:0.2},{entidade:"Salário Educação",aliquota:2.5},{entidade:"SEBRAE",aliquota:0.6}] } },
+  { prefixes:["10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","05","06","07","08","09","35","36","37","38","39"],
+    entry:{ fpas:"507", descricao:"Indústria em geral", entidades:[{entidade:"SESI",aliquota:1.5},{entidade:"SENAI",aliquota:1.0},{entidade:"INCRA",aliquota:0.2},{entidade:"SEBRAE",aliquota:0.6},{entidade:"Salário Educação",aliquota:2.5}] } },
+];
+
+const FPAS_DEFAULT: FpasEntry = { fpas:"515", descricao:"Comércio e serviços em geral", entidades:[{entidade:"SESC",aliquota:1.5},{entidade:"SENAC",aliquota:1.0},{entidade:"INCRA",aliquota:0.2},{entidade:"SEBRAE",aliquota:0.6},{entidade:"Salário Educação",aliquota:2.5}] };
+
+function getFpasEntry(cnae4: string): FpasEntry {
+  const prefix = cnae4.substring(0,2);
+  for (const row of FPAS_TABLE) {
+    if (row.prefixes.includes(prefix)) return row.entry;
+  }
+  return FPAS_DEFAULT;
+}
+
+function getRatEntry(cnae4: string) {
+  const prefix = cnae4.substring(0,2);
+  return RAT_GRAU[prefix] || { grau:1, rat:1, desc:"Grau 1 – Baixo risco" };
+}
+
+function getSimplexAnexo(cnae4: string): { anexo: string; descricao: string; sujetoFatorR: boolean } | null {
+  const p = parseInt(cnae4.substring(0,2));
+  if (p >= 47 && p <= 47) return { anexo:"I", descricao:"Comércio varejista", sujetoFatorR:false };
+  if (p >= 45 && p <= 46) return { anexo:"I", descricao:"Comércio atacadista/veículos", sujetoFatorR:false };
+  if (p >= 10 && p <= 33) return { anexo:"II", descricao:"Indústria de transformação", sujetoFatorR:false };
+  if (p === 41 || p === 42 || p === 43) return { anexo:"IV", descricao:"Construção civil", sujetoFatorR:false };
+  if (p === 62 || p === 63) return { anexo:"V", descricao:"TI e desenvolvimento de software", sujetoFatorR:true };
+  if (p === 85) return { anexo:"III", descricao:"Educação", sujetoFatorR:true };
+  if (p === 86 || p === 87 || p === 88) return { anexo:"III", descricao:"Serviços de saúde", sujetoFatorR:true };
+  if (p === 69 || p === 70 || p === 71) return { anexo:"IV", descricao:"Serviços profissionais (INSS patronal separado)", sujetoFatorR:false };
+  if (p >= 55 && p <= 56) return { anexo:"III", descricao:"Alojamento e alimentação", sujetoFatorR:true };
+  if (p >= 58 && p <= 61) return { anexo:"III", descricao:"Comunicação e informação", sujetoFatorR:true };
+  if (p >= 64 && p <= 66) return null;
+  if (p >= 49 && p <= 53) return { anexo:"III", descricao:"Transporte", sujetoFatorR:true };
+  if (p >= 73 && p <= 74) return { anexo:"V", descricao:"Publicidade e consultoria", sujetoFatorR:true };
+  if (p >= 78 && p <= 79) return { anexo:"III", descricao:"Serviços administrativos", sujetoFatorR:true };
+  return { anexo:"III", descricao:"Serviços em geral", sujetoFatorR:true };
+}
+
+// CPRB (Desoneração da folha) por setor – Lei 12.546/2011 e alterações
+const CPRB_SETORES: { ids: string[]; descricao: string; aliquota: number; exemplo: string }[] = [
+  { ids:["6201","6202","6203","6204","6209"], descricao:"TI / Tecnologia da Informação", aliquota:4.5, exemplo:"Desenvolvimento de software, consultorias de TI" },
+  { ids:["1811","1812","1813","1821","1822"], descricao:"Serviços gráficos", aliquota:2.5, exemplo:"Edição, impressão, acabamento gráfico" },
+  { ids:["1412","1421","1422","1531","1532","1533"], descricao:"Confecção/calçados", aliquota:1.0, exemplo:"Confecção de roupas e calçados" },
+  { ids:["1711","1721","1722","1731","1732"], descricao:"Celulose e papel", aliquota:2.5, exemplo:"Fabricação de celulose, papel e papelão" },
+  { ids:["2391","2392","2399"], descricao:"Pedras e materiais de construção", aliquota:1.0, exemplo:"Beneficiamento de pedras ornamentais" },
+  { ids:["3211","3212","3299"], descricao:"Bijuterias e instrumentos musicais", aliquota:2.5, exemplo:"Joias, bijuterias, instrumentos musicais" },
+  { ids:["4711","4712","4713","4721","4722","4723","4731","4741","4742","4744","4754","4755","4761","4762","4763","4771","4772","4773","4774","4781","4782","4789"],
+    descricao:"Comércio varejista (seletivo)", aliquota:1.0, exemplo:"Lojas varejistas em geral" },
+  { ids:["5611","5612","5620"], descricao:"Restaurantes e similares", aliquota:2.5, exemplo:"Restaurantes, bares, serviços de alimentação" },
+  { ids:["5911","5912","5913","5914","5920"], descricao:"Audiovisual / Cinema", aliquota:1.0, exemplo:"Produção, distribuição de filmes e programas" },
+  { ids:["7311","7312","7319","7320"], descricao:"Publicidade e propaganda", aliquota:2.5, exemplo:"Agências de publicidade, promoção de vendas" },
+  { ids:["8599","8511","8512","8513","8520","8531","8532","8541","8542","8543","8550"], descricao:"Educação", aliquota:2.5, exemplo:"Ensino pré-escolar até superior" },
+];
+
 const TABS = [
   { id: "faturamento",     label: "Faturamento",          icon: TrendingUp,  cor: "bg-green-500",   corText: "text-green-400"  },
   { id: "memoria",         label: "Memória de Cálculos",  icon: Calculator,  cor: "bg-blue-500",    corText: "text-blue-400"   },
@@ -113,7 +199,20 @@ export default function ConsultasFiscaisPage() {
   const [cnaeLoading, setCnaeLoading] = useState(false);
   const [cnaeError, setCnaeError] = useState("");
 
-  // Regime state
+  // Regime Previdenciário state
+  const [prevSubTab, setPrevSubTab] = useState<"ratfap"|"deso">("ratfap");
+  const [prevEmpresa, setPrevEmpresa] = useState("");
+  const [prevCnae4, setPrevCnae4] = useState("");
+  const [prevFap, setPrevFap] = useState("1.00");
+  const [prevResult, setPrevResult] = useState<any>(null);
+  const [prevLoading, setPrevLoading] = useState(false);
+  const [prevError, setPrevError] = useState("");
+  const [prevAtividades, setPrevAtividades] = useState<any[]>([]);
+  const [desoNcm, setDesoNcm] = useState("");
+  const [desoResult, setDesoResult] = useState<any>(null);
+  const [desoLoading, setDesoLoading] = useState(false);
+  const [desoError, setDesoError] = useState("");
+  // (legacy – kept for compatibility)
   const [regimeEmpresa, setRegimeEmpresa] = useState("");
 
   // NCM state
@@ -240,6 +339,83 @@ export default function ConsultasFiscaisPage() {
     const difal = valor * (aliqInterna - aliqInterestadual);
     const fecp = valor * 0.02;
     setDifalResult({ valor, icmsOrigem, icmsDestino, aliqInterestadual: aliqInterestadual * 100, difal: Math.max(0, difal), fecp, total: Math.max(0, difal) + fecp });
+  };
+
+  const consultarRAT = async () => {
+    setPrevResult(null); setPrevError(""); setPrevLoading(true);
+    try {
+      let cnae4 = prevCnae4.replace(/\D/g, "").substring(0,4);
+      if (!cnae4 && prevEmpresa) {
+        const cli = clienteById(prevEmpresa);
+        if (!cli?.cnpj) { setPrevError("Empresa sem CNPJ cadastrado."); return; }
+        const cnpj = cli.cnpj.replace(/\D/g,"");
+        const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+        if (!r.ok) throw new Error("CNPJ não encontrado na Receita Federal");
+        const d = await r.json();
+        cnae4 = String(d.cnae_fiscal || "").replace(/\D/g,"").substring(0,4);
+        setPrevCnae4(cnae4);
+        const ativs: any[] = [];
+        if (d.cnae_fiscal) ativs.push({ codigo: d.cnae_fiscal, descricao: d.cnae_fiscal_descricao, principal: true });
+        if (d.cnae_fiscais_secundarios) ativs.push(...d.cnae_fiscais_secundarios.slice(0,6).map((s: any) => ({ codigo: s.codigo, descricao: s.descricao, principal: false })));
+        setPrevAtividades(ativs);
+      }
+      if (!cnae4 || cnae4.length < 4) { setPrevError("Informe o CNAE (4 primeiros dígitos) ou selecione uma empresa."); return; }
+      let cnaeDesc = "";
+      try {
+        const r2 = await fetch(`https://brasilapi.com.br/api/cnae/v1/${cnae4.padEnd(7,"0")}`);
+        if (r2.ok) { const d2 = await r2.json(); cnaeDesc = d2.descricao || ""; }
+      } catch {}
+      const ratEntry = getRatEntry(cnae4);
+      const fpasEntry = getFpasEntry(cnae4);
+      const fap = Math.max(0.5, Math.min(3.0, parseFloat(prevFap) || 1.0));
+      const ratAjustado = ratEntry.rat * fap;
+      const totalTerceiros = fpasEntry.entidades.reduce((s, e) => s + e.aliquota, 0);
+      const inssPatronal = 20;
+      const totalPatronal = inssPatronal + ratAjustado + totalTerceiros;
+      const simplesAnexo = getSimplexAnexo(cnae4);
+      setPrevResult({ cnae4, cnaeDesc, ratEntry, fpasEntry, fap, ratAjustado, totalTerceiros, inssPatronal, totalPatronal, simplesAnexo });
+    } catch (e: any) {
+      setPrevError(e.message || "Erro ao consultar.");
+    } finally {
+      setPrevLoading(false);
+    }
+  };
+
+  const onPrevEmpresaChange = async (id: string) => {
+    setPrevEmpresa(id); setPrevCnae4(""); setPrevAtividades([]); setPrevResult(null); setPrevError("");
+    if (!id) return;
+    const cli = clienteById(id);
+    if (!cli?.cnpj) return;
+    try {
+      const cnpj = cli.cnpj.replace(/\D/g,"");
+      const r = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cnpj}`);
+      if (!r.ok) return;
+      const d = await r.json();
+      const cnae4 = String(d.cnae_fiscal || "").replace(/\D/g,"").substring(0,4);
+      setPrevCnae4(cnae4);
+      const ativs: any[] = [];
+      if (d.cnae_fiscal) ativs.push({ codigo: d.cnae_fiscal, descricao: d.cnae_fiscal_descricao, principal: true });
+      if (d.cnae_fiscais_secundarios) ativs.push(...d.cnae_fiscais_secundarios.slice(0,5).map((s: any) => ({ codigo: s.codigo, descricao: s.descricao, principal: false })));
+      setPrevAtividades(ativs);
+    } catch {}
+  };
+
+  const consultarDesoneração = async () => {
+    setDesoResult(null); setDesoError(""); setDesoLoading(true);
+    try {
+      const ncm = desoNcm.replace(/\D/g,"");
+      if (ncm.length < 4) { setDesoError("Informe pelo menos 4 dígitos do NCM."); return; }
+      const r = await fetch(`https://brasilapi.com.br/api/ncm/v1/${ncm}`);
+      if (!r.ok) throw new Error("NCM não encontrado");
+      const d = await r.json();
+      const ncm8 = String(d.codigo || ncm);
+      const setor = CPRB_SETORES.find(s => s.ids.some(id => ncm8.startsWith(id.substring(0,4))));
+      setDesoResult({ ncm: d, setor });
+    } catch (e: any) {
+      setDesoError(e.message || "Erro ao consultar NCM.");
+    } finally {
+      setDesoLoading(false);
+    }
   };
 
   const regimeCliente = clienteById(regimeEmpresa);
@@ -602,94 +778,361 @@ export default function ConsultasFiscaisPage() {
 
       {/* ── REGIME PREVIDENCIÁRIO ── */}
       {activeTab === "previdenciario" && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-card border-border/50">
-            <CardContent className="p-6 space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Users className="w-5 h-5 text-orange-400" />
-                <h2 className="font-semibold text-foreground">Regime Previdenciário</h2>
-              </div>
-              <p className="text-sm text-muted-foreground">Selecione a empresa para ver o regime de contribuição previdenciária</p>
-              <div className="space-y-2">
-                <Label>Selecione a empresa</Label>
-                <Select value={regimeEmpresa} onValueChange={setRegimeEmpresa}>
-                  <SelectTrigger className="bg-background">
-                    <SelectValue placeholder="Selecione uma empresa..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {clientes.length === 0 && <SelectItem value="_none" disabled>Nenhum cliente cadastrado</SelectItem>}
-                    {clientes.map(c => <SelectItem key={c.id} value={String(c.id)}>{c.nomeFantasia || c.razaoSocial}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              {regimeCliente && (
-                <div className="p-3 rounded-lg bg-secondary/40 border border-border/50 text-sm">
-                  <p className="font-medium text-foreground">{regimeCliente.razaoSocial}</p>
-                  <p className="text-muted-foreground mt-0.5">{regimeCliente.cnpj}</p>
-                  <p className={`mt-2 font-semibold ${regimeInfo?.cor || "text-muted-foreground"}`}>
-                    {regimeCliente.regimeTributario || "Regime não informado"}
-                  </p>
-                </div>
-              )}
-              <div className="pt-2 border-t border-border/50">
-                <p className="text-xs text-muted-foreground mb-3">Referências Legais:</p>
-                <div className="flex flex-wrap gap-3">
-                  {["eSocial","SEFIP","GRPS","Previdência Social"].map(f => (
-                    <span key={f} className="flex items-center gap-1 text-xs text-blue-400 cursor-pointer hover:underline">
-                      <ExternalLink className="w-3 h-3" />{f}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="space-y-4">
+          {/* Sub-tabs */}
+          <div className="flex gap-2 border-b border-border/50 pb-0">
+            {[
+              { k:"ratfap", l:"RAT/FAP por CNAE" },
+              { k:"deso",   l:"Desoneração por NCM" },
+            ].map(t => (
+              <button
+                key={t.k}
+                onClick={() => setPrevSubTab(t.k as any)}
+                className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${prevSubTab === t.k ? "border-orange-500 text-orange-400" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              >
+                {t.l}
+              </button>
+            ))}
+          </div>
 
-          <Card className="bg-card border-border/50">
-            <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Info className="w-5 h-5 text-muted-foreground" />
-                <h2 className="font-semibold text-foreground">Alíquotas e Contribuições</h2>
+          {/* ── RAT/FAP por CNAE ── */}
+          {prevSubTab === "ratfap" && (
+            <div className="space-y-4">
+              {/* Info banner */}
+              <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-start gap-2 text-sm text-orange-200">
+                <Info className="w-4 h-4 mt-0.5 shrink-0 text-orange-400" />
+                <span>Consulta às alíquotas RAT (Risco Ambiental do Trabalho), FPAS e contribuições de terceiros pelo CNAE da empresa. FAP (Fator Acidentário de Prevenção) varia de 0,5 a 3,0 conforme o histórico da empresa.</span>
               </div>
-              {!regimeEmpresa ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <Users className="w-12 h-12 text-muted-foreground/20 mb-4" />
-                  <p className="text-sm text-muted-foreground">Selecione uma empresa para ver as alíquotas</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">As informações são baseadas no regime tributário cadastrado</p>
-                </div>
-              ) : !regimeInfo ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <AlertCircle className="w-12 h-12 text-yellow-400/40 mb-4" />
-                  <p className="text-sm text-muted-foreground">Regime tributário não informado para esta empresa</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Atualize o cadastro do cliente para ver as alíquotas</p>
-                </div>
-              ) : (
-                <div className="space-y-5">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Tributação</p>
-                    <div className="space-y-2">
-                      {regimeInfo.aliquotas.map((a, i) => (
-                        <div key={i} className="flex items-start gap-2 p-2 rounded bg-secondary/30">
-                          <ChevronRight className={`w-3 h-3 mt-0.5 shrink-0 ${regimeInfo.cor}`} />
-                          <p className="text-sm text-foreground">{a}</p>
-                        </div>
-                      ))}
+
+              <Card className="bg-card border-border/50">
+                <CardContent className="p-6 space-y-4">
+                  {/* Row 1: empresa + CNAE */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="lg:col-span-2 space-y-1.5">
+                      <Label>Selecionar Empresa</Label>
+                      <Select value={prevEmpresa} onValueChange={onPrevEmpresaChange}>
+                        <SelectTrigger className="bg-background">
+                          <SelectValue placeholder="Selecione uma empresa cadastrada..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clientes.length === 0 && <SelectItem value="_none" disabled>Nenhum cliente cadastrado</SelectItem>}
+                          {clientes.map(c => (
+                            <SelectItem key={c.id} value={String(c.id)}>
+                              {c.nomeFantasia || c.razaoSocial}{c.cnpj ? ` – CNPJ: ${c.cnpj.slice(-4)}` : ""}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>CNAE (4 primeiros dígitos)</Label>
+                      <Input
+                        value={prevCnae4}
+                        onChange={e => setPrevCnae4(e.target.value.replace(/\D/g,"").substring(0,4))}
+                        className="bg-background font-mono"
+                        placeholder="Ex: 6201"
+                        maxLength={4}
+                      />
                     </div>
                   </div>
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Contribuições Previdenciárias</p>
-                    <div className="space-y-2">
-                      {regimeInfo.contribuicoes.map((c, i) => (
-                        <div key={i} className="flex items-start gap-2 p-2 rounded bg-secondary/30">
-                          <ChevronRight className="w-3 h-3 mt-0.5 shrink-0 text-orange-400" />
-                          <p className="text-sm text-foreground">{c}</p>
-                        </div>
-                      ))}
+
+                  {/* Row 2: FAP + Atividades */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <div className="space-y-1.5">
+                      <Label>FAP (Fator Acidentário) <span className="text-muted-foreground text-xs">0,5 a 3,0</span></Label>
+                      <Input
+                        type="number"
+                        value={prevFap}
+                        onChange={e => setPrevFap(e.target.value)}
+                        step="0.01" min="0.5" max="3.0"
+                        className="bg-background font-mono"
+                        placeholder="Ex: 1.00"
+                      />
+                    </div>
+                    <div className="lg:col-span-2 space-y-1.5">
+                      <Label>Atividades consolidadas da empresa</Label>
+                      <div className="flex flex-wrap gap-2 min-h-[38px] items-center">
+                        {prevAtividades.length === 0 && (
+                          <span className="text-xs text-muted-foreground">Selecione uma empresa com CNPJ para carregar as atividades</span>
+                        )}
+                        {prevAtividades.map((a, i) => (
+                          <span
+                            key={i}
+                            onClick={() => setPrevCnae4(String(a.codigo).replace(/\D/g,"").substring(0,4))}
+                            className={`px-2.5 py-1 rounded-full text-xs font-mono cursor-pointer transition-colors ${a.principal ? "bg-orange-600 text-white" : "bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground"}`}
+                            title={a.descricao}
+                          >
+                            {String(a.codigo).substring(0,4)}
+                            {a.principal && " ★"}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Consultar button */}
+                  <Button
+                    onClick={consultarRAT}
+                    disabled={prevLoading}
+                    className="w-full bg-orange-600 hover:bg-orange-700"
+                  >
+                    {prevLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Consultando CNAE...</> : <><Search className="w-4 h-4 mr-2" />Consultar CNAE</>}
+                  </Button>
+
+                  {prevError && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{prevError}</div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Resultado */}
+              {prevResult && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-foreground flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-green-400" />
+                      Resultado da Consulta
+                    </h3>
+                    <a
+                      href={`https://www.previdencia.gov.br/a-previdencia/politicas-de-previdencia-social/saude-e-seguranca-do-trabalhador/`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-blue-400 hover:underline"
+                    >
+                      <ExternalLink className="w-3 h-3" />Relatório / Referência
+                    </a>
+                  </div>
+
+                  {/* Cards grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    {/* CNAE */}
+                    <Card className="bg-card border-border/50">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground mb-1">CNAE</p>
+                        <p className="text-2xl font-bold text-orange-400 font-mono">{prevResult.cnae4}</p>
+                        <p className="text-xs text-muted-foreground mt-1 leading-tight">{prevResult.cnaeDesc || "Descrição não disponível"}</p>
+                      </CardContent>
+                    </Card>
+
+                    {/* RAT Básico */}
+                    <Card className="bg-card border-border/50">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground mb-1">RAT Básico</p>
+                        <p className="text-2xl font-bold text-foreground">{prevResult.ratEntry.rat}%</p>
+                        <p className="text-xs text-muted-foreground mt-1">Risco Ambiental do Trabalho</p>
+                        <Badge className={`mt-2 text-xs ${prevResult.ratEntry.grau === 1 ? "bg-green-500/20 text-green-400" : prevResult.ratEntry.grau === 2 ? "bg-yellow-500/20 text-yellow-400" : "bg-red-500/20 text-red-400"}`} variant="outline">
+                          Grau {prevResult.ratEntry.grau} – {prevResult.ratEntry.grau === 1 ? "Baixo Risco" : prevResult.ratEntry.grau === 2 ? "Médio Risco" : "Alto Risco"}
+                        </Badge>
+                      </CardContent>
+                    </Card>
+
+                    {/* FAP */}
+                    <Card className="bg-card border-border/50">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground mb-1">FAP</p>
+                        <p className="text-2xl font-bold text-foreground">{prevResult.fap.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Fator Acidentário de Prevenção</p>
+                        <Badge className={`mt-2 text-xs ${prevResult.fap < 1 ? "bg-green-500/20 text-green-400" : prevResult.fap === 1 ? "bg-blue-500/20 text-blue-400" : "bg-red-500/20 text-red-400"}`} variant="outline">
+                          {prevResult.fap < 1 ? "Bônus" : prevResult.fap === 1 ? "Neutro" : "Agravo"}
+                        </Badge>
+                      </CardContent>
+                    </Card>
+
+                    {/* RAT Ajustado */}
+                    <Card className="bg-card border-border/50">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground mb-1">RAT Ajustado (RAT × FAP)</p>
+                        <p className="text-2xl font-bold text-orange-400">{prevResult.ratAjustado.toFixed(2)}%</p>
+                        <p className="text-xs text-muted-foreground mt-1">{prevResult.ratEntry.rat}% × {prevResult.fap.toFixed(2)}</p>
+                      </CardContent>
+                    </Card>
+
+                    {/* FPAS */}
+                    <Card className="bg-card border-border/50">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground mb-1">FPAS</p>
+                        <p className="text-2xl font-bold text-foreground font-mono">{prevResult.fpasEntry.fpas}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{prevResult.fpasEntry.descricao}</p>
+                      </CardContent>
+                    </Card>
+
+                    {/* Terceiros */}
+                    <Card className="bg-card border-border/50">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground mb-1">Terceiros (Sistema S)</p>
+                        <p className="text-2xl font-bold text-foreground">{prevResult.totalTerceiros.toFixed(1)}%</p>
+                        <div className="mt-2 space-y-0.5">
+                          {prevResult.fpasEntry.entidades.map((e: any, i: number) => (
+                            <div key={i} className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">{e.entidade}:</span>
+                              <span className="text-foreground font-mono">{e.aliquota.toFixed(1)}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Simples Nacional Anexo */}
+                  {prevResult.simplesAnexo && (
+                    <Card className="bg-card border-border/50">
+                      <CardContent className="p-4 flex items-start justify-between gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                            Anexo do Simples Nacional
+                            {prevResult.simplesAnexo.sujetoFatorR && (
+                              <Badge className="ml-1 text-[10px] bg-yellow-500/20 text-yellow-400 border-yellow-500/30" variant="outline">Sujeito ao Fator R</Badge>
+                            )}
+                          </p>
+                          <p className="text-2xl font-bold text-foreground">
+                            Anexo <span className="text-orange-400">{prevResult.simplesAnexo.anexo}</span>
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">{prevResult.simplesAnexo.descricao}</p>
+                          {prevResult.simplesAnexo.sujetoFatorR && (
+                            <p className="text-xs text-yellow-400/80 mt-1">
+                              ℹ Se Fator R ≥ 28%: tributado no Anexo III · Se Fator R &lt; 28%: Anexo V
+                            </p>
+                          )}
+                        </div>
+                        <FileText className="w-8 h-8 text-muted-foreground/30 shrink-0" />
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Total Patronal */}
+                  <Card className="bg-gradient-to-r from-orange-500/10 to-transparent border-orange-500/30">
+                    <CardContent className="p-4 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          Total Patronal sobre a folha
+                          <span className="text-[10px] text-orange-400/70">(INSS 20% + RAT {prevResult.ratAjustado.toFixed(2)}% + Terceiros {prevResult.totalTerceiros.toFixed(1)}%)</span>
+                        </p>
+                        <p className="text-3xl font-bold text-orange-400">{prevResult.totalPatronal.toFixed(2)}%</p>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground space-y-1">
+                        <div className="flex justify-end items-center gap-2"><span>INSS Patronal:</span><span className="font-mono text-foreground">20,00%</span></div>
+                        <div className="flex justify-end items-center gap-2"><span>RAT Ajustado:</span><span className="font-mono text-foreground">{prevResult.ratAjustado.toFixed(2)}%</span></div>
+                        <div className="flex justify-end items-center gap-2"><span>Sistema S:</span><span className="font-mono text-foreground">{prevResult.totalTerceiros.toFixed(1)}%</span></div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          )}
+
+          {/* ── DESONERAÇÃO POR NCM ── */}
+          {prevSubTab === "deso" && (
+            <div className="space-y-4">
+              {/* Info banner */}
+              <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-start gap-2 text-sm text-blue-200">
+                <Info className="w-4 h-4 mt-0.5 shrink-0 text-blue-400" />
+                <span>A Desoneração da Folha (CPRB – Lei 12.546/2011) permite substituir a contribuição patronal de 20% sobre a folha por uma alíquota sobre a Receita Bruta (1% a 4,5%), para empresas de determinados setores. Consulte pelo código NCM ou CNAE da atividade.</span>
+              </div>
+
+              <Card className="bg-card border-border/50">
+                <CardContent className="p-6 space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>Código NCM ou CNAE da atividade</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={desoNcm}
+                        onChange={e => setDesoNcm(e.target.value)}
+                        className="bg-background font-mono"
+                        placeholder="Ex: 6201 (CNAE) ou 8471.30 (NCM)"
+                        maxLength={12}
+                      />
+                      <Button onClick={consultarDesoneração} disabled={desoLoading} className="bg-blue-600 hover:bg-blue-700 shrink-0">
+                        {desoLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {desoError && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">{desoError}</div>
+                  )}
+
+                  {/* Tabela de setores desonerados */}
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Setores com CPRB (Lei 12.546/2011)</p>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {CPRB_SETORES.map((s, i) => (
+                        <div key={i} className="flex items-start justify-between gap-3 p-2.5 rounded-lg bg-secondary/30 hover:bg-secondary/50 cursor-pointer"
+                          onClick={() => setDesoNcm(s.ids[0])}>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{s.descricao}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{s.exemplo}</p>
+                          </div>
+                          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 shrink-0" variant="outline">
+                            {s.aliquota}% CPRB
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Resultado da Desoneração */}
+              {desoResult && (
+                <div className="space-y-3">
+                  {desoResult.ncm && (
+                    <Card className="bg-card border-border/50">
+                      <CardContent className="p-4">
+                        <p className="text-xs text-muted-foreground mb-2">NCM Consultado</p>
+                        <p className="font-mono text-lg text-foreground">{desoResult.ncm.codigo}</p>
+                        <p className="text-sm text-muted-foreground mt-1">{desoResult.ncm.descricao}</p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {desoResult.setor ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Card className="bg-green-500/5 border-green-500/30">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2 className="w-5 h-5 text-green-400" />
+                            <p className="font-semibold text-green-400">Atividade Desonerada</p>
+                          </div>
+                          <p className="text-sm text-foreground">{desoResult.setor.descricao}</p>
+                          <p className="text-3xl font-bold text-green-400 mt-3">{desoResult.setor.aliquota}%</p>
+                          <p className="text-xs text-muted-foreground">CPRB sobre Receita Bruta</p>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-card border-border/50">
+                        <CardContent className="p-4">
+                          <p className="text-sm font-semibold text-foreground mb-3">Comparativo de Custo</p>
+                          <div className="space-y-2 text-xs">
+                            <div className="flex justify-between items-center p-2 rounded bg-red-500/10">
+                              <span className="text-muted-foreground">Regime Normal (INSS Patronal):</span>
+                              <span className="font-bold text-red-400">20% folha</span>
+                            </div>
+                            <div className="flex justify-between items-center p-2 rounded bg-green-500/10">
+                              <span className="text-muted-foreground">CPRB (Desoneração):</span>
+                              <span className="font-bold text-green-400">{desoResult.setor.aliquota}% receita</span>
+                            </div>
+                            <div className="p-2 rounded bg-secondary/40 text-muted-foreground">
+                              <p className="font-medium text-foreground mb-1">Quando vale a pena?</p>
+                              <p>Folha &gt; {((desoResult.setor.aliquota / 20) * 100).toFixed(0)}% da receita bruta → CPRB é mais vantajosa</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  ) : (
+                    <Card className="bg-yellow-500/5 border-yellow-500/30">
+                      <CardContent className="p-4 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-yellow-400 shrink-0 mt-0.5" />
+                        <div>
+                          <p className="font-semibold text-yellow-400">Atividade não desonerada</p>
+                          <p className="text-sm text-muted-foreground mt-1">Esta atividade não consta na lista de setores beneficiados pela CPRB (Lei 12.546/2011). Contribuição patronal normal: 20% sobre a folha de pagamento.</p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
