@@ -293,14 +293,14 @@ export default function EscritorioPage() {
                         name="slug"
                         value={form.slug}
                         onChange={(e) => {
-                          const v = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "");
+                          const v = e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "");
                           setForm((p: any) => ({ ...p, slug: v }));
                         }}
-                        placeholder="meu-escritorio"
+                        placeholder="meuescritorio"
                         className="bg-background pl-16 font-mono"
                       />
                     </div>
-                    <p className="text-xs text-muted-foreground">Apenas letras minúsculas, números e hífens. Ex: silva-contabilidade</p>
+                    <p className="text-xs text-muted-foreground">Apenas letras minúsculas e números, sem espaços. Ex: cnservicos</p>
                   </div>
                 </div>
               </div>
