@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+export DEBIAN_FRONTEND=noninteractive
 
 YELLOW='\033[1;33m'
 GREEN='\033[0;32m'
@@ -8,13 +9,13 @@ CYAN='\033[0;36m'
 NC='\033[0m'
 
 log()  { echo -e "${CYAN}[ContabDOC]${NC} $1"; }
-ok()   { echo -e "${GREEN}[✓]${NC} $1"; }
-fail() { echo -e "${RED}[✗] ERRO: $1${NC}"; exit 1; }
+ok()   { echo -e "${GREEN}[OK]${NC} $1"; }
+fail() { echo -e "${RED}[ERRO] $1${NC}"; exit 1; }
 
 echo ""
-echo -e "${YELLOW}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${YELLOW}║       ContabDOC — Instalação Automática VPS      ║${NC}"
-echo -e "${YELLOW}╚══════════════════════════════════════════════════╝${NC}"
+echo -e "${YELLOW}==================================================${NC}"
+echo -e "${YELLOW}     ContabDOC - Instalacao Automatica VPS        ${NC}"
+echo -e "${YELLOW}==================================================${NC}"
 echo ""
 
 GITHUB_REPO="https://github.com/xicocrm/ContabDocs"
@@ -22,18 +23,21 @@ INSTALL_DIR="/opt/contabdoc"
 DB_PASSWORD="Chico1010@@@"
 VPS_IP="187.77.229.111"
 
-# ── 1. Atualizar sistema ──────────────────────────────────────────────
+# 1. Atualizar sistema (sem prompts)
 log "Atualizando sistema..."
 apt-get update -qq
-apt-get upgrade -y -qq 2>/dev/null
+apt-get -y -qq \
+  -o Dpkg::Options::="--force-confold" \
+  -o Dpkg::Options::="--force-confdef" \
+  upgrade
 ok "Sistema atualizado"
 
-# ── 2. Instalar dependências ──────────────────────────────────────────
-log "Instalando dependências..."
+# 2. Instalar dependencias
+log "Instalando dependencias..."
 apt-get install -y -qq curl wget git ca-certificates gnupg lsb-release ufw
-ok "Dependências instaladas"
+ok "Dependencias instaladas"
 
-# ── 3. Instalar Docker ────────────────────────────────────────────────
+# 3. Instalar Docker
 if ! command -v docker &>/dev/null; then
   log "Instalando Docker..."
   install -m 0755 -d /etc/apt/keyrings
@@ -49,30 +53,32 @@ https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
   systemctl start docker
   ok "Docker instalado"
 else
-  ok "Docker já instalado"
+  ok "Docker ja instalado"
 fi
 
-# ── 4. Baixar código do GitHub ────────────────────────────────────────
-if [ -d "$INSTALL_DIR" ]; then
-  log "Atualizando código existente..."
+# 4. Baixar codigo do GitHub
+if [ -d "$INSTALL_DIR/.git" ]; then
+  log "Atualizando codigo existente..."
   cd "$INSTALL_DIR"
-  git pull origin main
+  git fetch origin
+  git reset --hard origin/main
 else
-  log "Baixando código do GitHub..."
+  log "Baixando codigo do GitHub..."
+  rm -rf "$INSTALL_DIR"
   git clone "$GITHUB_REPO" "$INSTALL_DIR"
   cd "$INSTALL_DIR"
 fi
-ok "Código atualizado"
+ok "Codigo atualizado"
 
-# ── 5. Criar arquivo .env ─────────────────────────────────────────────
-log "Configurando variáveis de ambiente..."
-cat > "$INSTALL_DIR/deploy/.env" <<EOF
+# 5. Criar arquivo .env
+log "Configurando variaveis de ambiente..."
+cat > "$INSTALL_DIR/deploy/.env" <<ENVEOF
 DB_PASSWORD=${DB_PASSWORD}
 NODE_ENV=production
-EOF
+ENVEOF
 ok ".env configurado"
 
-# ── 6. Configurar firewall ────────────────────────────────────────────
+# 6. Configurar firewall
 log "Configurando firewall..."
 ufw --force reset >/dev/null 2>&1
 ufw default deny incoming >/dev/null 2>&1
@@ -83,25 +89,23 @@ ufw allow 443/tcp >/dev/null 2>&1
 ufw --force enable >/dev/null 2>&1
 ok "Firewall configurado"
 
-# ── 7. Build e iniciar containers ─────────────────────────────────────
+# 7. Build e iniciar containers
 cd "$INSTALL_DIR/deploy"
 log "Fazendo build (pode levar alguns minutos)..."
 docker compose --env-file .env down 2>/dev/null || true
 docker compose --env-file .env build --no-cache
 
-log "Iniciando todos os serviços..."
+log "Iniciando todos os servicos..."
 docker compose --env-file .env up -d
 
-# ── 8. Aguardar e verificar ───────────────────────────────────────────
-log "Aguardando serviços iniciarem..."
+# 8. Aguardar e verificar
+log "Aguardando servicos iniciarem..."
 sleep 20
-
-log "Status dos containers:"
 docker compose --env-file .env ps
 
-# ── 9. Configurar reinício automático ─────────────────────────────────
-log "Configurando reinício automático..."
-cat > /etc/systemd/system/contabdoc.service <<EOF
+# 9. Configurar reinicio automatico
+log "Configurando reinicio automatico..."
+cat > /etc/systemd/system/contabdoc.service <<SVCEOF
 [Unit]
 Description=ContabDOC
 Requires=docker.service
@@ -116,24 +120,15 @@ RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-EOF
+SVCEOF
 systemctl daemon-reload
 systemctl enable contabdoc
-ok "Reinício automático configurado"
+ok "Reinicio automatico configurado"
 
-# ── Resumo ────────────────────────────────────────────────────────────
 echo ""
-echo -e "${GREEN}╔══════════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║         ✓  INSTALAÇÃO CONCLUÍDA COM SUCESSO!         ║${NC}"
-echo -e "${GREEN}╠══════════════════════════════════════════════════════╣${NC}"
-echo -e "${GREEN}║                                                      ║${NC}"
-echo -e "${GREEN}║  🌐 Acesse:  http://${VPS_IP}             ║${NC}"
-echo -e "${GREEN}║                                                      ║${NC}"
-echo -e "${GREEN}║  Comandos úteis (dentro de /opt/contabdoc/deploy):   ║${NC}"
-echo -e "${GREEN}║  Ver logs:    docker compose logs -f                 ║${NC}"
-echo -e "${GREEN}║  Reiniciar:   docker compose restart                 ║${NC}"
-echo -e "${GREEN}║  Parar:       docker compose down                    ║${NC}"
-echo -e "${GREEN}║  Atualizar:   bash /opt/contabdoc/deploy/install.sh  ║${NC}"
-echo -e "${GREEN}║                                                      ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════════╝${NC}"
+echo -e "${GREEN}==================================================${NC}"
+echo -e "${GREEN}    INSTALACAO CONCLUIDA COM SUCESSO!             ${NC}"
+echo -e "${GREEN}==================================================${NC}"
+echo -e "${GREEN}  Acesse: http://${VPS_IP}                        ${NC}"
+echo -e "${GREEN}==================================================${NC}"
 echo ""
