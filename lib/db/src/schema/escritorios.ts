@@ -23,6 +23,12 @@ export const escritoriosTable = pgTable("escritorios", {
   situacao: text("situacao"),
   slug: text("slug").unique(),
   logoUrl: text("logo_url"),
+  contadorNome: text("contador_nome"),
+  contadorCrc: text("contador_crc"),
+  contadorCpf: text("contador_cpf"),
+  contadorEmail: text("contador_email"),
+  contadorTelefone: text("contador_telefone"),
+  contadorAssinatura: text("contador_assinatura"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
