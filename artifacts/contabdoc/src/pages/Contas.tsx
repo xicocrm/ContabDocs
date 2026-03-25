@@ -185,6 +185,7 @@ export default function ContasPage() {
   const contaPagarFileRef = useRef<HTMLInputElement>(null);
   const [contaPagarEditId, setContaPagarEditId] = useState<number | null>(null);
   const [pagarOpen, setPagarOpen] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [pagarTarget, setPagarTarget] = useState<Conta | null>(null);
   const [pagarForm, setPagarForm] = useState({ dataPagamento: "", formaPagamento: "", observacoes: "" });
 
@@ -451,17 +452,84 @@ export default function ContasPage() {
 
   const totalHonorarios = Math.max(0, subtotalHonorarios - descontoCalculado);
 
+  const extractFileData = useCallback(async (file: File, target: "honorarios" | "pagar") => {
+    const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (!allowed.includes(file.type)) return;
+    if (file.size > 10 * 1024 * 1024) return;
+
+    setExtracting(true);
+    try {
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const result = await API.post<{ dados: Record<string, string> }>("/extrair-fatura", {
+        base64,
+        mimeType: file.type,
+        contexto: target === "honorarios" ? "cobrança de honorários" : "conta a pagar",
+      });
+
+      const d = result.dados;
+
+      if (target === "pagar") {
+        setContaPagarForm(prev => ({
+          ...prev,
+          ...(d.fornecedor && !prev.fornecedor ? { fornecedor: d.fornecedor } : {}),
+          ...(d.valor && !prev.valor ? { valor: d.valor } : {}),
+          ...(d.categoria && !prev.categoria ? { categoria: d.categoria } : {}),
+          ...(d.dataVencimento && !prev.dataVencimento ? { dataVencimento: d.dataVencimento } : {}),
+          ...(d.linhaDigitavel && !prev.linhaDigitavel ? { linhaDigitavel: d.linhaDigitavel } : {}),
+          ...(d.pixCopiaCola && !prev.pixCopiaCola ? { pixCopiaCola: d.pixCopiaCola } : {}),
+          ...(d.observacoes && !prev.observacoes ? { observacoes: d.observacoes } : {}),
+        }));
+      } else {
+        setHonorariosForm(prev => {
+          const updated = { ...prev };
+          if (d.clienteNome && !prev.clienteId) {
+            const match = clientes.find(c =>
+              c.razaoSocial?.toLowerCase().includes(d.clienteNome.toLowerCase()) ||
+              c.nomeFantasia?.toLowerCase().includes(d.clienteNome.toLowerCase())
+            );
+            if (match) updated.clienteId = String(match.id);
+          }
+          if (d.dataVencimento && !prev.dataVencimento) updated.dataVencimento = d.dataVencimento;
+          if (d.competencia && !prev.competencia) updated.competencia = d.competencia;
+          if (d.descricao && prev.servicos.length === 1 && !prev.servicos[0].descricao) {
+            updated.servicos = [{ descricao: d.descricao, valor: d.valor || "" }];
+          }
+          if (d.observacoes && !prev.observacoes) updated.observacoes = d.observacoes;
+          return updated;
+        });
+      }
+
+      toast({ title: "Dados extraídos do documento!", description: "Verifique os campos preenchidos." });
+    } catch (err: any) {
+      toast({ title: "Não foi possível extrair dados", description: err.message || "Erro ao processar", variant: "destructive" });
+    } finally {
+      setExtracting(false);
+    }
+  }, [clientes, toast]);
+
   const handleFileDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
     const file = e.dataTransfer.files[0];
-    if (file) setAnexo(file);
-  }, []);
+    if (file) {
+      setAnexo(file);
+      extractFileData(file, "honorarios");
+    }
+  }, [extractFileData]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setAnexo(file);
-  }, []);
+    if (file) {
+      setAnexo(file);
+      extractFileData(file, "honorarios");
+    }
+  }, [extractFileData]);
 
   const handleGerarCobranca = () => {
     if (!honorariosForm.clienteId) {
@@ -1204,7 +1272,7 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                     <span className="text-primary font-medium cursor-pointer">Clique para selecionar</span>
                     <span className="text-muted-foreground"> ou arraste um arquivo</span>
                   </p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">PDF, DOC, XLS, imagens ou qualquer outro arquivo</p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">PDF, imagens — dados serão extraídos automaticamente</p>
                 </div>
               ) : (
                 <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/30">
@@ -1214,7 +1282,13 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">{anexo.name}</p>
-                      <p className="text-xs text-muted-foreground">{(anexo.size / 1024).toFixed(1)} KB</p>
+                      <p className="text-xs text-muted-foreground">
+                        {extracting ? (
+                          <span className="text-primary flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Extraindo dados do documento...</span>
+                        ) : (
+                          `${(anexo.size / 1024).toFixed(1)} KB`
+                        )}
+                      </p>
                     </div>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => { setAnexo(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="h-8 w-8 text-red-400 hover:bg-red-500/10">
@@ -1222,7 +1296,7 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                   </Button>
                 </div>
               )}
-              <p className="text-xs text-muted-foreground/60 mt-2">Este arquivo será enviado junto com a cobrança por e-mail e WhatsApp.</p>
+              <p className="text-xs text-muted-foreground/60 mt-2">PDF e imagens terão dados extraídos automaticamente para preencher o formulário.</p>
             </div>
 
             <div>
@@ -1397,7 +1471,7 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                 type="file"
                 className="hidden"
                 accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.csv,.txt,.zip,.rar"
-                onChange={e => { const f = e.target.files?.[0]; if (f) setContaPagarAnexo(f); }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) { setContaPagarAnexo(f); extractFileData(f, "pagar"); } }}
               />
               {!contaPagarAnexo ? (
                 <div
@@ -1409,12 +1483,13 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                   onClick={() => contaPagarFileRef.current?.click()}
                   onDragOver={e => { e.preventDefault(); setContaPagarDragOver(true); }}
                   onDragLeave={() => setContaPagarDragOver(false)}
-                  onDrop={e => { e.preventDefault(); setContaPagarDragOver(false); const f = e.dataTransfer.files[0]; if (f) setContaPagarAnexo(f); }}
+                  onDrop={e => { e.preventDefault(); setContaPagarDragOver(false); const f = e.dataTransfer.files[0]; if (f) { setContaPagarAnexo(f); extractFileData(f, "pagar"); } }}
                 >
                   <Paperclip className="w-6 h-6 text-primary/40 mx-auto mb-2" />
                   <p className="text-sm">
                     <span className="text-primary font-medium">Clique para anexar um documento</span>
                   </p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">PDF e imagens terão dados extraídos automaticamente</p>
                 </div>
               ) : (
                 <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/30">
@@ -1424,7 +1499,13 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                     </div>
                     <div>
                       <p className="text-sm font-medium text-foreground">{contaPagarAnexo.name}</p>
-                      <p className="text-xs text-muted-foreground">{(contaPagarAnexo.size / 1024).toFixed(1)} KB</p>
+                      <p className="text-xs text-muted-foreground">
+                        {extracting ? (
+                          <span className="text-primary flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Extraindo dados do documento...</span>
+                        ) : (
+                          `${(contaPagarAnexo.size / 1024).toFixed(1)} KB`
+                        )}
+                      </p>
                     </div>
                   </div>
                   <Button variant="ghost" size="icon" onClick={() => { setContaPagarAnexo(null); if (contaPagarFileRef.current) contaPagarFileRef.current.value = ""; }} className="h-8 w-8 text-red-400 hover:bg-red-500/10">

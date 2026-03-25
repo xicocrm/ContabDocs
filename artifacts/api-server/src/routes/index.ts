@@ -18,6 +18,7 @@ import authRouter from "./auth";
 import portalRouter from "./portal";
 import alvarasRouter from "./alvaras";
 import extrairDocumentoRouter from "./extrair-documento";
+import extrairFaturaRouter from "./extrair-fatura";
 import tarefasRouter from "./tarefas";
 import backupRouter from "./backup";
 
@@ -42,6 +43,7 @@ router.use("/campanhas", requireAuth, campanhasRouter);
 router.use("/consultas-fiscais", requireAuth, consultasFiscaisRouter);
 router.use("/alvaras", requireAuth, alvarasRouter);
 router.use("/extrair-documento", requireAuth, extrairDocumentoRouter);
+router.use("/extrair-fatura", requireAuth, extrairFaturaRouter);
 router.use("/tarefas", requireAuth, tarefasRouter);
 router.use("/backup", requireAuth, backupRouter);
 
