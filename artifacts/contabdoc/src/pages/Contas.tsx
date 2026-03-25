@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useEscritorio } from "@/contexts/EscritorioContext";
@@ -22,7 +22,8 @@ import {
   AlertCircle, CheckCircle2, Search, DollarSign, Filter,
   Calendar, FileText, CreditCard, Receipt, Download,
   Bell, LayoutGrid, List, ArrowUpDown, Clock, XCircle,
-  Building2, Eye, Send, X, ChevronDown, Sparkles, User, Hash
+  Building2, Eye, Send, X, ChevronDown, Sparkles, User,
+  Tag, Upload, Paperclip, Percent, FileDown
 } from "lucide-react";
 
 interface Conta {
@@ -68,11 +69,23 @@ interface HonorariosForm {
   dataVencimento: string;
   numeroRecibo: string;
   servicos: ServicoItem[];
+  formaPagamento: string;
+  descontoValor: string;
+  descontoTipo: "fixo" | "percentual";
+  descontoPrazo: string;
+  observacoes: string;
 }
 
 const MESES = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+];
+
+const BANCOS_PAGAMENTO = [
+  "Pix", "Boleto Bancário", "Transferência Bancária",
+  "Cartão de Crédito", "Cartão de Débito",
+  "Asaas", "Efí Pay (Gerencianet)", "Banco Inter", "Mercado Pago",
+  "Débito Automático", "Depósito", "Dinheiro", "Cheque",
 ];
 
 const emptyHonorarios = (): HonorariosForm => {
@@ -85,6 +98,11 @@ const emptyHonorarios = (): HonorariosForm => {
     dataVencimento: "",
     numeroRecibo: "",
     servicos: [{ id: crypto.randomUUID(), descricao: "", valor: "" }],
+    formaPagamento: "",
+    descontoValor: "",
+    descontoTipo: "fixo",
+    descontoPrazo: "",
+    observacoes: "",
   };
 };
 
@@ -166,6 +184,9 @@ export default function ContasPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [honorariosOpen, setHonorariosOpen] = useState(false);
   const [honorariosForm, setHonorariosForm] = useState<HonorariosForm>(emptyHonorarios());
+  const [anexo, setAnexo] = useState<File | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: contas = [], isLoading } = useQuery<Conta[]>({
     queryKey: ["contas", escritorioId],
@@ -229,7 +250,6 @@ export default function ContasPage() {
     return c ? (c.razaoSocial || c.nomeFantasia || `#${id}`) : `#${id}`;
   };
 
-  const openNew = () => { setForm({ ...empty, tipo: tab }); setEditId(null); setFormTab("dados"); setOpen(true); };
   const openEdit = (c: Conta) => { setForm(c); setEditId(c.id); setFormTab("dados"); setOpen(true); };
 
   const handleSave = () => {
@@ -242,6 +262,7 @@ export default function ContasPage() {
 
   const openHonorarios = () => {
     setHonorariosForm(emptyHonorarios());
+    setAnexo(null);
     setHonorariosOpen(true);
   };
 
@@ -269,7 +290,28 @@ export default function ContasPage() {
     }));
   };
 
-  const totalHonorarios = honorariosForm.servicos.reduce((acc, s) => acc + parseCurrency(s.valor), 0);
+  const subtotalHonorarios = honorariosForm.servicos.reduce((acc, s) => acc + parseCurrency(s.valor), 0);
+
+  const descontoCalculado = (() => {
+    const dv = parseCurrency(honorariosForm.descontoValor);
+    if (dv <= 0) return 0;
+    if (honorariosForm.descontoTipo === "percentual") return subtotalHonorarios * (dv / 100);
+    return dv;
+  })();
+
+  const totalHonorarios = Math.max(0, subtotalHonorarios - descontoCalculado);
+
+  const handleFileDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) setAnexo(file);
+  }, []);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) setAnexo(file);
+  }, []);
 
   const handleGerarCobranca = () => {
     if (!honorariosForm.clienteId) {
@@ -290,6 +332,15 @@ export default function ContasPage() {
     const competencia = `${String(mesIdx).padStart(2, "0")}/${honorariosForm.ano}`;
     const descricaoServicos = servicosValidos.map(s => s.descricao).join(", ");
 
+    const obsLines: string[] = [];
+    servicosValidos.forEach(s => obsLines.push(`${s.descricao}: ${s.valor}`));
+    if (descontoCalculado > 0) {
+      obsLines.push(`Desconto: -${fmtCurrency(descontoCalculado)} (${honorariosForm.descontoTipo === "percentual" ? honorariosForm.descontoValor + "%" : "valor fixo"})`);
+    }
+    if (honorariosForm.formaPagamento) obsLines.push(`Pagamento: ${honorariosForm.formaPagamento}`);
+    if (anexo) obsLines.push(`Arquivo anexo: ${anexo.name}`);
+    if (honorariosForm.observacoes) obsLines.push(`Obs: ${honorariosForm.observacoes}`);
+
     save.mutate({
       tipo: "receber",
       status: "pendente",
@@ -300,14 +351,72 @@ export default function ContasPage() {
       competencia,
       dataEmissao: honorariosForm.dataEmissao,
       dataVencimento: honorariosForm.dataVencimento,
+      formaPagamento: honorariosForm.formaPagamento || undefined,
       numeroDocumento: honorariosForm.numeroRecibo || undefined,
-      observacoes: servicosValidos.map(s => `${s.descricao}: ${s.valor}`).join("\n"),
+      observacoes: obsLines.join("\n"),
     }, {
       onSuccess: () => {
         setHonorariosOpen(false);
+        setAnexo(null);
         toast({ title: "Cobrança de honorários gerada!" });
       },
     });
+  };
+
+  const handleGerarRelatorio = () => {
+    const servicosValidos = honorariosForm.servicos.filter(s => s.descricao.trim() && s.valor);
+    if (!honorariosForm.clienteId || servicosValidos.length === 0) {
+      toast({ title: "Preencha os dados do cliente e serviços para gerar o relatório", variant: "destructive" });
+      return;
+    }
+
+    const cli = clientes.find(c => String(c.id) === honorariosForm.clienteId);
+    const docNum = clienteCnpjCpf
+      ? (clienteCnpjCpf.length > 11 ? formatters.cnpj(clienteCnpjCpf) : formatters.cpf(clienteCnpjCpf))
+      : "N/A";
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cobrança de Honorários</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;padding:40px;color:#1a1a2e;max-width:800px;margin:0 auto}
+.header{text-align:center;border-bottom:3px solid #1a1a2e;padding-bottom:20px;margin-bottom:30px}
+.header h1{font-size:24px;color:#1a1a2e} .header p{color:#666;font-size:14px;margin-top:4px}
+.section{margin-bottom:24px} .section h2{font-size:16px;color:#1a1a2e;border-bottom:1px solid #ddd;padding-bottom:8px;margin-bottom:12px}
+.row{display:flex;gap:20px;margin-bottom:8px} .row .label{font-weight:600;min-width:160px;color:#555;font-size:13px}
+.row .value{color:#1a1a2e;font-size:13px}
+table{width:100%;border-collapse:collapse;margin-top:8px}
+th{background:#1a1a2e;color:white;padding:10px 12px;text-align:left;font-size:12px;text-transform:uppercase}
+td{padding:10px 12px;border-bottom:1px solid #eee;font-size:13px}
+.total-row{background:#f0f7ff;font-weight:700}
+.discount-row{color:#e74c3c}
+.footer{margin-top:40px;text-align:center;color:#999;font-size:11px;border-top:1px solid #eee;padding-top:16px}
+</style></head><body>
+<div class="header"><h1>COBRANÇA DE HONORÁRIOS</h1><p>Ref: ${honorariosForm.mes}/${honorariosForm.ano}</p></div>
+<div class="section"><h2>Dados do Cliente</h2>
+<div class="row"><span class="label">Razão Social:</span><span class="value">${cli?.razaoSocial || cli?.nomeFantasia || ""}</span></div>
+<div class="row"><span class="label">CNPJ/CPF:</span><span class="value">${docNum}</span></div>
+<div class="row"><span class="label">Competência:</span><span class="value">${honorariosForm.mes}/${honorariosForm.ano}</span></div>
+<div class="row"><span class="label">Emissão:</span><span class="value">${honorariosForm.dataEmissao}</span></div>
+<div class="row"><span class="label">Vencimento:</span><span class="value">${honorariosForm.dataVencimento || "—"}</span></div>
+${honorariosForm.numeroRecibo ? `<div class="row"><span class="label">Nº Recibo:</span><span class="value">${honorariosForm.numeroRecibo}</span></div>` : ""}
+${honorariosForm.formaPagamento ? `<div class="row"><span class="label">Forma de Pagamento:</span><span class="value">${honorariosForm.formaPagamento}</span></div>` : ""}
+</div>
+<div class="section"><h2>Serviços</h2>
+<table><thead><tr><th>#</th><th>Descrição</th><th style="text-align:right">Valor</th></tr></thead><tbody>
+${servicosValidos.map((s, i) => `<tr><td>${i + 1}</td><td>${s.descricao}</td><td style="text-align:right">${s.valor}</td></tr>`).join("")}
+${descontoCalculado > 0 ? `<tr class="discount-row"><td></td><td>Desconto ${honorariosForm.descontoTipo === "percentual" ? `(${honorariosForm.descontoValor}%)` : "(valor fixo)"}</td><td style="text-align:right">-${fmtCurrency(descontoCalculado)}</td></tr>` : ""}
+<tr class="total-row"><td></td><td>TOTAL</td><td style="text-align:right">${fmtCurrency(totalHonorarios)}</td></tr>
+</tbody></table></div>
+${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p style="font-size:13px;color:#555">${honorariosForm.observacoes}</p></div>` : ""}
+<div class="footer">Documento gerado pelo ContabDOC em ${new Date().toLocaleDateString("pt-BR")} às ${new Date().toLocaleTimeString("pt-BR")}</div>
+</body></html>`;
+
+    const w = window.open("", "_blank");
+    if (w) {
+      w.document.write(html);
+      w.document.close();
+      setTimeout(() => w.print(), 500);
+    }
   };
 
   if (!escritorioId) return <AppLayout title="Contas a Receber/Pagar"><SemEscritorio /></AppLayout>;
@@ -422,12 +531,8 @@ export default function ContasPage() {
                   </TabsList>
                 </Tabs>
 
-                <Button onClick={openHonorarios} variant="outline" className="gap-1.5 shrink-0 h-9 text-sm border-primary/30 text-primary hover:bg-primary/10">
+                <Button onClick={openHonorarios} className="bg-gradient-to-r from-primary to-indigo-600 gap-1.5 shrink-0 h-9 text-sm">
                   <Sparkles className="w-4 h-4" /> Gerar Honorários
-                </Button>
-
-                <Button onClick={openNew} className="bg-gradient-to-r from-primary to-indigo-600 gap-1.5 shrink-0 h-9 text-sm">
-                  <Plus className="w-4 h-4" /> Nova Fatura
                 </Button>
               </div>
             </div>
@@ -696,6 +801,7 @@ export default function ContasPage() {
           </div>
 
           <div className="px-6 py-5 overflow-y-auto max-h-[calc(92vh-200px)] space-y-6">
+
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center">
@@ -703,7 +809,6 @@ export default function ContasPage() {
                 </div>
                 <h3 className="text-base font-semibold text-foreground">Dados do Cliente</h3>
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider">
@@ -736,35 +841,18 @@ export default function ContasPage() {
                   />
                 </div>
               </div>
-
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                    Mês <span className="text-red-400">*</span>
-                  </Label>
-                  <Select
-                    value={honorariosForm.mes}
-                    onValueChange={v => setHonorariosForm(prev => ({ ...prev, mes: v }))}
-                  >
-                    <SelectTrigger className="bg-background h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {MESES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Mês <span className="text-red-400">*</span></Label>
+                  <Select value={honorariosForm.mes} onValueChange={v => setHonorariosForm(prev => ({ ...prev, mes: v }))}>
+                    <SelectTrigger className="bg-background h-10"><SelectValue /></SelectTrigger>
+                    <SelectContent>{MESES.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                    Ano <span className="text-red-400">*</span>
-                  </Label>
-                  <Select
-                    value={honorariosForm.ano}
-                    onValueChange={v => setHonorariosForm(prev => ({ ...prev, ano: v }))}
-                  >
-                    <SelectTrigger className="bg-background h-10">
-                      <SelectValue />
-                    </SelectTrigger>
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Ano <span className="text-red-400">*</span></Label>
+                  <Select value={honorariosForm.ano} onValueChange={v => setHonorariosForm(prev => ({ ...prev, ano: v }))}>
+                    <SelectTrigger className="bg-background h-10"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - 1 + i)).map(y => (
                         <SelectItem key={y} value={y}>{y}</SelectItem>
@@ -774,34 +862,15 @@ export default function ContasPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider">Emissão</Label>
-                  <Input
-                    value={honorariosForm.dataEmissao}
-                    onChange={e => setHonorariosForm(prev => ({ ...prev, dataEmissao: formatters.date(e.target.value) }))}
-                    className="bg-background h-10 font-mono"
-                    placeholder="DD/MM/AAAA"
-                    maxLength={10}
-                  />
+                  <Input value={honorariosForm.dataEmissao} onChange={e => setHonorariosForm(prev => ({ ...prev, dataEmissao: formatters.date(e.target.value) }))} className="bg-background h-10 font-mono" placeholder="DD/MM/AAAA" maxLength={10} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">
-                    Vencimento <span className="text-red-400">*</span>
-                  </Label>
-                  <Input
-                    value={honorariosForm.dataVencimento}
-                    onChange={e => setHonorariosForm(prev => ({ ...prev, dataVencimento: formatters.date(e.target.value) }))}
-                    className="bg-background h-10 font-mono"
-                    placeholder="DD/MM/AAAA"
-                    maxLength={10}
-                  />
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Vencimento <span className="text-red-400">*</span></Label>
+                  <Input value={honorariosForm.dataVencimento} onChange={e => setHonorariosForm(prev => ({ ...prev, dataVencimento: formatters.date(e.target.value) }))} className="bg-background h-10 font-mono" placeholder="DD/MM/AAAA" maxLength={10} />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs text-muted-foreground uppercase tracking-wider">Nº Recibo</Label>
-                  <Input
-                    value={honorariosForm.numeroRecibo}
-                    onChange={e => setHonorariosForm(prev => ({ ...prev, numeroRecibo: e.target.value }))}
-                    className="bg-background h-10"
-                    placeholder="Automático"
-                  />
+                  <Input value={honorariosForm.numeroRecibo} onChange={e => setHonorariosForm(prev => ({ ...prev, numeroRecibo: e.target.value }))} className="bg-background h-10" placeholder="Automático" />
                 </div>
               </div>
             </div>
@@ -818,87 +887,250 @@ export default function ContasPage() {
                   <Plus className="w-3.5 h-3.5" /> Adicionar
                 </Button>
               </div>
-
               <div className="space-y-3">
                 {honorariosForm.servicos.map((servico, idx) => (
                   <div key={servico.id} className="flex items-start gap-3 p-3 bg-muted/30 rounded-lg border border-border/30">
-                    <span className="w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary mt-1 shrink-0">
-                      {idx + 1}
-                    </span>
+                    <span className="w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center text-xs font-semibold text-primary mt-1 shrink-0">{idx + 1}</span>
                     <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
                       <div className="md:col-span-2 space-y-1.5">
                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">Descrição do Serviço</Label>
-                        <Input
-                          value={servico.descricao}
-                          onChange={e => updateServico(servico.id, "descricao", e.target.value)}
-                          className="bg-background h-10"
-                          placeholder="Ex: Honorários contábeis, Folha de pagamento..."
-                        />
+                        <Input value={servico.descricao} onChange={e => updateServico(servico.id, "descricao", e.target.value)} className="bg-background h-10" placeholder="Ex: Honorários contábeis, Folha de pagamento..." />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-xs text-muted-foreground uppercase tracking-wider">Valor</Label>
-                        <Input
-                          value={servico.valor}
-                          onChange={e => updateServico(servico.id, "valor", formatters.currency(e.target.value))}
-                          className="bg-background h-10 font-mono"
-                          placeholder="R$ 0,00"
-                        />
+                        <Input value={servico.valor} onChange={e => updateServico(servico.id, "valor", formatters.currency(e.target.value))} className="bg-background h-10 font-mono" placeholder="R$ 0,00" />
                       </div>
                     </div>
                     {honorariosForm.servicos.length > 1 && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => removeServico(servico.id)}
-                        className="h-8 w-8 text-red-400 hover:bg-red-500/10 mt-6 shrink-0"
-                      >
+                      <Button variant="ghost" size="icon" onClick={() => removeServico(servico.id)} className="h-8 w-8 text-red-400 hover:bg-red-500/10 mt-6 shrink-0">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     )}
                   </div>
                 ))}
               </div>
-
-              {totalHonorarios > 0 && (
+              {subtotalHonorarios > 0 && (
                 <div className="flex items-center justify-end mt-4 pt-3 border-t border-border/30">
                   <div className="text-right">
-                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Total</span>
-                    <p className="text-2xl font-bold text-green-400 font-mono">{fmtCurrency(totalHonorarios)}</p>
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">Subtotal</span>
+                    <p className="text-lg font-semibold text-foreground font-mono">{fmtCurrency(subtotalHonorarios)}</p>
                   </div>
                 </div>
               )}
             </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-lg bg-amber-500/15 flex items-center justify-center">
+                  <Tag className="w-4 h-4 text-amber-400" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground">Desconto</h3>
+                <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/50">Opcional</Badge>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Valor do Desconto</Label>
+                  <div className="relative">
+                    <Input
+                      value={honorariosForm.descontoValor}
+                      onChange={e => {
+                        if (honorariosForm.descontoTipo === "fixo") {
+                          setHonorariosForm(prev => ({ ...prev, descontoValor: formatters.currency(e.target.value) }));
+                        } else {
+                          const raw = e.target.value.replace(/[^\d]/g, "");
+                          setHonorariosForm(prev => ({ ...prev, descontoValor: raw }));
+                        }
+                      }}
+                      className="bg-background h-10 font-mono pr-10"
+                      placeholder={honorariosForm.descontoTipo === "fixo" ? "R$ 0,00" : "0"}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                      {honorariosForm.descontoTipo === "fixo" ? "R$" : "%"}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Tipo de Desconto</Label>
+                  <Select
+                    value={honorariosForm.descontoTipo}
+                    onValueChange={v => setHonorariosForm(prev => ({ ...prev, descontoTipo: v as "fixo" | "percentual", descontoValor: "" }))}
+                  >
+                    <SelectTrigger className="bg-background h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fixo">
+                        <span className="flex items-center gap-2"><DollarSign className="w-3.5 h-3.5" /> Valor Fixo</span>
+                      </SelectItem>
+                      <SelectItem value="percentual">
+                        <span className="flex items-center gap-2"><Percent className="w-3.5 h-3.5" /> Percentual</span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Prazo do Desconto</Label>
+                  <Input
+                    value={honorariosForm.descontoPrazo}
+                    onChange={e => setHonorariosForm(prev => ({ ...prev, descontoPrazo: formatters.date(e.target.value) }))}
+                    className="bg-background h-10 font-mono"
+                    placeholder="dd/mm/aaaa"
+                    maxLength={10}
+                  />
+                </div>
+              </div>
+              {descontoCalculado > 0 && (
+                <div className="mt-3 p-2 bg-amber-500/10 rounded-lg border border-amber-500/20 flex items-center justify-between">
+                  <span className="text-xs text-amber-400">Desconto aplicado</span>
+                  <span className="text-sm font-semibold text-amber-400 font-mono">-{fmtCurrency(descontoCalculado)}</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-lg bg-indigo-500/15 flex items-center justify-center">
+                  <CreditCard className="w-4 h-4 text-indigo-400" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground">Forma de Pagamento</h3>
+              </div>
+              <Select
+                value={honorariosForm.formaPagamento || "__none__"}
+                onValueChange={v => setHonorariosForm(prev => ({ ...prev, formaPagamento: v === "__none__" ? "" : v }))}
+              >
+                <SelectTrigger className="bg-background h-10">
+                  <SelectValue placeholder="Selecione a forma de pagamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Selecione —</SelectItem>
+                  {BANCOS_PAGAMENTO.map(b => <SelectItem key={b} value={b}>{b}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-7 h-7 rounded-lg bg-slate-500/15 flex items-center justify-center">
+                  <Paperclip className="w-4 h-4 text-slate-400" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground">Anexar Arquivo</h3>
+                <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/50">Opcional</Badge>
+              </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.csv,.txt,.zip,.rar"
+                onChange={handleFileSelect}
+              />
+              {!anexo ? (
+                <div
+                  className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+                    isDragOver
+                      ? "border-primary bg-primary/5"
+                      : "border-border/50 hover:border-primary/40 hover:bg-primary/5"
+                  }`}
+                  onClick={() => fileInputRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+                  onDragLeave={() => setIsDragOver(false)}
+                  onDrop={handleFileDrop}
+                >
+                  <Upload className="w-8 h-8 text-muted-foreground/40 mx-auto mb-3" />
+                  <p className="text-sm">
+                    <span className="text-primary font-medium cursor-pointer">Clique para selecionar</span>
+                    <span className="text-muted-foreground"> ou arraste um arquivo</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground/60 mt-1">PDF, DOC, XLS, imagens ou qualquer outro arquivo</p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{anexo.name}</p>
+                      <p className="text-xs text-muted-foreground">{(anexo.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => { setAnexo(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="h-8 w-8 text-red-400 hover:bg-red-500/10">
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground/60 mt-2">Este arquivo será enviado junto com a cobrança por e-mail e WhatsApp.</p>
+            </div>
+
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-7 h-7 rounded-lg bg-purple-500/15 flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-purple-400" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground">Observações</h3>
+                <Badge variant="outline" className="text-[10px] text-muted-foreground border-border/50">Opcional</Badge>
+              </div>
+              <Textarea
+                value={honorariosForm.observacoes}
+                onChange={e => setHonorariosForm(prev => ({ ...prev, observacoes: e.target.value }))}
+                className="bg-background resize-none min-h-[80px]"
+                rows={3}
+                placeholder="Anotações ou informações adicionais..."
+              />
+            </div>
+
+            {totalHonorarios > 0 && (
+              <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20 rounded-xl p-4 flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-muted-foreground uppercase tracking-wider">Total da Cobrança</span>
+                  {descontoCalculado > 0 && (
+                    <p className="text-xs text-muted-foreground line-through">{fmtCurrency(subtotalHonorarios)}</p>
+                  )}
+                </div>
+                <p className="text-3xl font-bold text-green-400 font-mono">{fmtCurrency(totalHonorarios)}</p>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center justify-between px-6 py-4 bg-muted/30 border-t border-border/40">
             <Button variant="ghost" onClick={() => setHonorariosOpen(false)} className="text-muted-foreground gap-2">
               Cancelar
             </Button>
-            <Button
-              onClick={handleGerarCobranca}
-              disabled={save.isPending || !honorariosForm.clienteId || !honorariosForm.dataVencimento}
-              className="gap-2 px-6 shadow-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
-            >
-              {save.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-              <Sparkles className="w-4 h-4" />
-              Gerar Cobrança
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={handleGerarRelatorio}
+                disabled={!honorariosForm.clienteId}
+                className="gap-2 text-sm border-primary/30 text-primary hover:bg-primary/10"
+              >
+                <FileDown className="w-4 h-4" />
+                Gerar Relatório
+              </Button>
+              <Button
+                onClick={handleGerarCobranca}
+                disabled={save.isPending || !honorariosForm.clienteId || !honorariosForm.dataVencimento}
+                className="gap-2 px-6 shadow-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
+              >
+                {save.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <Sparkles className="w-4 h-4" />
+                Gerar Cobrança
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-2xl p-0 bg-card border-border/50 max-h-[92vh] overflow-hidden rounded-xl">
-          <div className={`relative px-6 pt-5 pb-4 ${tab === "receber" ? "bg-gradient-to-r from-green-600/80 via-emerald-600/70 to-teal-600/60" : "bg-gradient-to-r from-red-600/80 via-rose-600/70 to-pink-600/60"}`}>
+          <div className={`relative px-6 pt-5 pb-4 ${form.tipo === "receber" ? "bg-gradient-to-r from-green-600/80 via-emerald-600/70 to-teal-600/60" : "bg-gradient-to-r from-red-600/80 via-rose-600/70 to-pink-600/60"}`}>
             <DialogHeader>
               <DialogTitle className="flex items-center gap-3 text-white text-lg font-semibold">
                 <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
                   <Receipt className="w-5 h-5 text-white" />
                 </div>
-                {editId ? "Editar Fatura" : "Nova Fatura"}
+                Editar Fatura
               </DialogTitle>
               <DialogDescription className="text-white/70 text-sm mt-1">
-                {tab === "receber" ? "Conta a receber" : "Conta a pagar"} — {editId ? "edite os dados abaixo" : "preencha os dados da nova fatura"}
+                {form.tipo === "receber" ? "Conta a receber" : "Conta a pagar"} — edite os dados abaixo
               </DialogDescription>
             </DialogHeader>
           </div>
