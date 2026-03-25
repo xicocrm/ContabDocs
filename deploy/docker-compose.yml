@@ -24,10 +24,15 @@ services:
     container_name: contabdoc_migrate
     command: >
       sh -c "
-        echo 'Aguardando banco...' &&
-        sleep 3 &&
-        PGPASSWORD=${DB_PASSWORD} psql -h db -U contabdoc -d contabdoc -f /migrate/init.sql &&
-        echo '✓ Migrations concluídas!'
+        echo 'Aguardando banco ficar pronto...' &&
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          psql -h db -U contabdoc -d contabdoc -c 'SELECT 1' > /dev/null 2>&1 && break;
+          echo \"Tentativa $i/10 - aguardando 3s...\";
+          sleep 3;
+        done &&
+        echo 'Executando migrations...' &&
+        psql -h db -U contabdoc -d contabdoc -f /migrate/init.sql &&
+        echo '✓ Migrations concluídas com sucesso!'
       "
     environment:
       PGPASSWORD: ${DB_PASSWORD}

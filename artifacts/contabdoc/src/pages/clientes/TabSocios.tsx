@@ -169,6 +169,11 @@ export function TabSocios({ value, onChange }: TabSociosProps) {
     update(list);
   };
 
+  const setSocioFields = (i: number, fields: Partial<Socio>) => {
+    const list = socios.map((s, idx) => idx === i ? { ...s, ...fields } : s);
+    update(list);
+  };
+
   if (socios.length === 0) {
     return (
       <div className="text-center py-16">
@@ -273,6 +278,31 @@ export function TabSocios({ value, onChange }: TabSociosProps) {
                   onChange={e => setSocioField(i, "nomeMae", e.target.value.toUpperCase())}
                   placeholder="Nome completo da mãe"
                   className="bg-background/60 uppercase"
+                />
+              </div>
+            </div>
+
+            {/* Documentos do Sócio */}
+            <div className="mt-5 pt-4 border-t border-border/30">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                <Paperclip className="w-3.5 h-3.5" /> Documentos do Sócio
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <DocUploadSlot
+                  label="Documento Pessoal (RG / CNH / Passaporte)"
+                  variant="primary"
+                  arquivoNome={s.documentoPessoalNome || ""}
+                  arquivo={s.documentoPessoal || ""}
+                  onFile={(b64, nome) => setSocioFields(i, { documentoPessoal: b64, documentoPessoalNome: nome })}
+                  onClear={() => setSocioFields(i, { documentoPessoal: "", documentoPessoalNome: "" })}
+                />
+                <DocUploadSlot
+                  label="Comprovante de Endereço"
+                  variant="green"
+                  arquivoNome={s.comprovanteEnderecoNome || ""}
+                  arquivo={s.comprovanteEndereco || ""}
+                  onFile={(b64, nome) => setSocioFields(i, { comprovanteEndereco: b64, comprovanteEnderecoNome: nome })}
+                  onClear={() => setSocioFields(i, { comprovanteEndereco: "", comprovanteEnderecoNome: "" })}
                 />
               </div>
             </div>

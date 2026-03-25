@@ -76,8 +76,11 @@ timeout 60 bash -c 'until docker exec contabdoc_db pg_isready -U contabdoc -d co
   && ok "Banco de dados pronto" || warn "Timeout aguardando banco"
 
 log "Executando migrações do banco..."
-docker compose --env-file .env run --rm migrate 2>/dev/null || true
+docker compose --env-file .env run --rm migrate 2>/dev/null || warn "Migrate retornou erro (verifique os logs)"
 ok "Migrações executadas"
+
+log "Garantindo que API e Web estão rodando após migrate..."
+docker compose --env-file .env up -d api web 2>/dev/null || true
 
 log "Aguardando API ficar saudável via nginx (até 90s)..."
 timeout 90 bash -c 'until curl -sf http://localhost/api/health &>/dev/null; do sleep 3; done' \
