@@ -40,6 +40,10 @@ export const clientesTable = pgTable("clientes", {
   arquivoInscricaoMunicipalNome: text("arquivo_inscricao_municipal_nome"),
   arquivoInscricaoEstadual: text("arquivo_inscricao_estadual"),
   arquivoInscricaoEstadualNome: text("arquivo_inscricao_estadual_nome"),
+  documentoPessoal: text("documento_pessoal"),
+  documentoPessoalNome: text("documento_pessoal_nome"),
+  comprovanteEndereco: text("comprovante_endereco"),
+  comprovanteEnderecoNome: text("comprovante_endereco_nome"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
