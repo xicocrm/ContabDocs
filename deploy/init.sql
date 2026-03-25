@@ -334,6 +334,15 @@ ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_municipal_nome T
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_estadual TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_estadual_nome TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS iptu_numero TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS faturamento_anual TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS faturamento_mes TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS anexo_simples TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS das_valor_mensal TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS optante_simples TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS situacao_simples TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS data_opcao_simples TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS regime_fiscal_obs TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS aliquota_efetiva TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS documento_pessoal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS documento_pessoal_nome TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS comprovante_endereco TEXT;
