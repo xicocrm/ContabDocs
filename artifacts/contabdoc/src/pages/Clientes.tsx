@@ -27,7 +27,7 @@ import {
   Loader2, Plus, Search, Edit, Trash2, Building2, User, ArrowLeft,
   FileText, CheckCircle, AlertCircle, DollarSign, Calendar, MapPin,
   FolderOpen, Lock, Key, ExternalLink, Eye, EyeOff,
-  Users, Globe, Scale, UserCheck, ChevronRight,
+  Users, Globe, Scale, UserCheck, ChevronRight, Paperclip, Upload, X,
 } from "lucide-react";
 import { TabSocios } from "./clientes/TabSocios";
 import { TabGoverno } from "./clientes/TabGoverno";
@@ -58,6 +58,8 @@ const emptyCliente = {
   inscricaoMunicipal: '', inscricaoEstadual: '',
   arquivoInscricaoMunicipal: '', arquivoInscricaoMunicipalNome: '',
   arquivoInscricaoEstadual: '', arquivoInscricaoEstadualNome: '',
+  documentoPessoal: '', documentoPessoalNome: '',
+  comprovanteEndereco: '', comprovanteEnderecoNome: '',
 };
 
 const emptyContrato = {
@@ -535,6 +537,128 @@ export default function ClientesPage() {
                       <div className="space-y-2">
                         <Label>UF</Label>
                         <Input name="uf" value={clienteForm.uf} onChange={handleClienteChange} className="bg-background uppercase" maxLength={2} />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Documentos Pessoais */}
+                <Card className="bg-card border-border/50">
+                  <CardContent className="pt-5 pb-5 space-y-4">
+                    <SectionHeader icon={Paperclip} title="Documentos Pessoais" />
+                    <p className="text-xs text-muted-foreground -mt-2">Anexe documento de identidade e comprovante de endereço do responsável.</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Documento Pessoal */}
+                      <div className="space-y-2">
+                        <Label>Documento Pessoal <span className="text-muted-foreground font-normal">(RG, CNH, Passaporte)</span></Label>
+                        <div className="flex flex-col gap-2 p-3 rounded-lg bg-secondary/20 border border-border/40">
+                          {clienteForm.documentoPessoalNome ? (
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-primary shrink-0" />
+                              <span className="text-sm text-foreground truncate flex-1">{clienteForm.documentoPessoalNome}</span>
+                              <div className="flex gap-1">
+                                <a
+                                  href={clienteForm.documentoPessoal}
+                                  download={clienteForm.documentoPessoalNome}
+                                  className="p-1 rounded text-primary hover:bg-primary/10 transition-colors"
+                                  title="Baixar arquivo"
+                                >
+                                  <Upload className="w-3.5 h-3.5 rotate-180" />
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => setClienteForm((p: any) => ({ ...p, documentoPessoal: '', documentoPessoalNome: '' }))}
+                                  className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                  title="Remover"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-muted-foreground/60">
+                              <Paperclip className="w-4 h-4" />
+                              <span className="text-sm">Nenhum documento anexado</span>
+                            </div>
+                          )}
+                          <label className="cursor-pointer self-start">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                              <Upload className="w-3.5 h-3.5" />
+                              {clienteForm.documentoPessoalNome ? 'Trocar arquivo' : 'Selecionar arquivo'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                if (file.size > 5 * 1024 * 1024) { toast({ title: "Arquivo muito grande", description: "Use um arquivo de até 5MB", variant: "destructive" }); return; }
+                                const reader = new FileReader();
+                                reader.onload = (ev) => setClienteForm((p: any) => ({ ...p, documentoPessoal: ev.target?.result as string, documentoPessoalNome: file.name }));
+                                reader.readAsDataURL(file);
+                              }}
+                            />
+                          </label>
+                          <p className="text-[10px] text-muted-foreground/50">PDF, JPG ou PNG. Máx 5MB</p>
+                        </div>
+                      </div>
+
+                      {/* Comprovante de Endereço */}
+                      <div className="space-y-2">
+                        <Label>Comprovante de Endereço</Label>
+                        <div className="flex flex-col gap-2 p-3 rounded-lg bg-secondary/20 border border-border/40">
+                          {clienteForm.comprovanteEnderecoNome ? (
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-green-400 shrink-0" />
+                              <span className="text-sm text-foreground truncate flex-1">{clienteForm.comprovanteEnderecoNome}</span>
+                              <div className="flex gap-1">
+                                <a
+                                  href={clienteForm.comprovanteEndereco}
+                                  download={clienteForm.comprovanteEnderecoNome}
+                                  className="p-1 rounded text-green-400 hover:bg-green-400/10 transition-colors"
+                                  title="Baixar arquivo"
+                                >
+                                  <Upload className="w-3.5 h-3.5 rotate-180" />
+                                </a>
+                                <button
+                                  type="button"
+                                  onClick={() => setClienteForm((p: any) => ({ ...p, comprovanteEndereco: '', comprovanteEnderecoNome: '' }))}
+                                  className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                  title="Remover"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 text-muted-foreground/60">
+                              <Paperclip className="w-4 h-4" />
+                              <span className="text-sm">Nenhum comprovante anexado</span>
+                            </div>
+                          )}
+                          <label className="cursor-pointer self-start">
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border/50 bg-secondary/40 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                              <Upload className="w-3.5 h-3.5" />
+                              {clienteForm.comprovanteEnderecoNome ? 'Trocar arquivo' : 'Selecionar arquivo'}
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                if (file.size > 5 * 1024 * 1024) { toast({ title: "Arquivo muito grande", description: "Use um arquivo de até 5MB", variant: "destructive" }); return; }
+                                const reader = new FileReader();
+                                reader.onload = (ev) => setClienteForm((p: any) => ({ ...p, comprovanteEndereco: ev.target?.result as string, comprovanteEnderecoNome: file.name }));
+                                reader.readAsDataURL(file);
+                              }}
+                            />
+                          </label>
+                          <p className="text-[10px] text-muted-foreground/50">PDF, JPG ou PNG. Máx 5MB</p>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
