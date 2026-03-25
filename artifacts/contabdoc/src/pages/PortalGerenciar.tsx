@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { API } from "@/lib/api";
 import { useEscritorio } from "@/contexts/EscritorioContext";
@@ -12,7 +12,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   FolderOpen, Upload, Download, Trash2, RefreshCw, FileText, User,
   Link2, ExternalLink, Loader2, CheckCircle, Plus, Eye, Printer,
-  Pencil, Building2, LayoutGrid, List, Receipt, X
+  Pencil, Building2, LayoutGrid, List, Receipt, X,
+  Folder, FolderPlus, ChevronRight, ChevronDown, MoreHorizontal,
+  FolderMinus, ArrowRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -51,6 +53,38 @@ interface Imposto {
   arquivoNome: string | null;
   observacoes: string | null;
   createdAt: string;
+}
+
+// ─── Pasta types ──────────────────────────────────────────────────────────────
+
+interface Pasta {
+  id: string;
+  nome: string;
+  parentId: string | null;
+  ordem: number;
+}
+
+const ROOT_ID = "__root__";
+
+function genId() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+function pastasKey(escritorioId: number | null, clienteId: string) {
+  return `cdoc_pastas_${escritorioId}_${clienteId}`;
+}
+function filePastaKey(escritorioId: number | null, clienteId: string) {
+  return `cdoc_fpasta_${escritorioId}_${clienteId}`;
+}
+function loadPastas(key: string): Pasta[] {
+  try { return JSON.parse(localStorage.getItem(key) || "[]"); } catch { return []; }
+}
+function savePastas(key: string, p: Pasta[]) {
+  localStorage.setItem(key, JSON.stringify(p));
+}
+function loadFilePastas(key: string): Record<string, string> {
+  try { return JSON.parse(localStorage.getItem(key) || "{}"); } catch { return {}; }
+}
+function saveFilePastas(key: string, m: Record<string, string>) {
+  localStorage.setItem(key, JSON.stringify(m));
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -105,7 +139,19 @@ export default function PortalGerenciar() {
   const impostoFileRef = useRef<HTMLInputElement>(null);
 
   const [clienteSelecionado, setClienteSelecionado] = useState<string>("all");
-  const [docView, setDocView] = useState<"list" | "cards">("list");
+  const [docView, setDocView] = useState<"tree" | "cards">("tree");
+
+  // ── Pasta / folder tree state ──────────────────────────────────────────────
+  const [pastas, setPastas] = useState<Pasta[]>([]);
+  const [filePastas, setFilePastas] = useState<Record<string, string>>({});
+  const [selectedPastaId, setSelectedPastaId] = useState<string>(ROOT_ID);
+  const [expandedPastas, setExpandedPastas] = useState<Set<string>>(new Set([ROOT_ID]));
+  const [showNovaPasta, setShowNovaPasta] = useState(false);
+  const [novaPastaNome, setNovaPastaNome] = useState("");
+  const [novaPastaParentId, setNovaPastaParentId] = useState<string | null>(null);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renamingNome, setRenamingNome] = useState("");
+  const [moveFileTarget, setMoveFileTarget] = useState<Arquivo | null>(null);
 
   // Documentos
   const [showUpload, setShowUpload] = useState(false);
@@ -145,6 +191,75 @@ export default function PortalGerenciar() {
     queryFn: () => API.get(`/escritorios/${escritorioId}`),
     enabled: !!escritorioId,
   });
+
+  // ── Load/save pastas from localStorage ────────────────────────────────────
+  useEffect(() => {
+    const key = pastasKey(escritorioId, clienteSelecionado);
+    const fpKey = filePastaKey(escritorioId, clienteSelecionado);
+    setPastas(loadPastas(key));
+    setFilePastas(loadFilePastas(fpKey));
+    setSelectedPastaId(ROOT_ID);
+    setExpandedPastas(new Set([ROOT_ID]));
+  }, [escritorioId, clienteSelecionado]);
+
+  const persistPastas = useCallback((next: Pasta[]) => {
+    const key = pastasKey(escritorioId, clienteSelecionado);
+    savePastas(key, next);
+    setPastas(next);
+  }, [escritorioId, clienteSelecionado]);
+
+  const persistFilePastas = useCallback((next: Record<string, string>) => {
+    const key = filePastaKey(escritorioId, clienteSelecionado);
+    saveFilePastas(key, next);
+    setFilePastas(next);
+  }, [escritorioId, clienteSelecionado]);
+
+  const addPasta = (nome: string, parentId: string | null) => {
+    const nova: Pasta = { id: genId(), nome: nome.trim(), parentId, ordem: pastas.length };
+    const next = [...pastas, nova];
+    persistPastas(next);
+    setExpandedPastas(p => new Set([...p, parentId ?? ROOT_ID]));
+    setSelectedPastaId(nova.id);
+  };
+
+  const renamePasta = (id: string, nome: string) => {
+    persistPastas(pastas.map(p => p.id === id ? { ...p, nome: nome.trim() } : p));
+  };
+
+  const deletePasta = (id: string) => {
+    const getAllChildren = (pid: string): string[] => {
+      const children = pastas.filter(p => p.parentId === pid).map(p => p.id);
+      return [...children, ...children.flatMap(getAllChildren)];
+    };
+    const toDelete = new Set([id, ...getAllChildren(id)]);
+    persistPastas(pastas.filter(p => !toDelete.has(p.id)));
+    const nextFp = { ...filePastas };
+    Object.keys(nextFp).forEach(fid => { if (toDelete.has(nextFp[fid])) delete nextFp[fid]; });
+    persistFilePastas(nextFp);
+    if (selectedPastaId === id || toDelete.has(selectedPastaId)) setSelectedPastaId(ROOT_ID);
+  };
+
+  const moveFileToPasta = (fileId: string, pastaId: string | null) => {
+    const next = { ...filePastas };
+    if (pastaId === null) { delete next[String(fileId)]; }
+    else { next[String(fileId)] = pastaId; }
+    persistFilePastas(next);
+    setMoveFileTarget(null);
+  };
+
+  const getChildPastas = (parentId: string | null) =>
+    pastas.filter(p => p.parentId === parentId).sort((a, b) => a.ordem - b.ordem);
+
+  const getFilesInPasta = (lista: Arquivo[], pastaId: string) => {
+    if (pastaId === ROOT_ID) return lista.filter(a => !filePastas[String(a.id)]);
+    return lista.filter(a => filePastas[String(a.id)] === pastaId);
+  };
+
+  const countFilesInSubtree = (lista: Arquivo[], pastaId: string): number => {
+    const direct = getFilesInPasta(lista, pastaId).length;
+    const children = getChildPastas(pastaId === ROOT_ID ? null : pastaId);
+    return direct + children.reduce((acc, c) => acc + countFilesInSubtree(lista, c.id), 0);
+  };
 
   const { data: clientes = [] } = useQuery<Cliente[]>({
     queryKey: ["clientes-portal", escritorioId],
@@ -372,9 +487,9 @@ export default function PortalGerenciar() {
               <div className="flex items-center gap-2">
                 <Button
                   size="sm"
-                  variant={docView === "list" ? "secondary" : "ghost"}
-                  onClick={() => setDocView("list")}
-                  className={`${docView === "list" ? "bg-white/20 text-white" : "text-blue-100 hover:text-white hover:bg-white/10"}`}
+                  variant={docView === "tree" ? "secondary" : "ghost"}
+                  onClick={() => setDocView("tree")}
+                  className={`${docView === "tree" ? "bg-white/20 text-white" : "text-blue-100 hover:text-white hover:bg-white/10"}`}
                 >
                   <List className="w-4 h-4 mr-1.5" /> Árvore
                 </Button>
@@ -444,10 +559,164 @@ export default function PortalGerenciar() {
                     tab === "escritorio" ? arquivos.filter(a => a.enviadoPor === "escritorio") :
                     arquivos.filter(a => a.enviadoPor === "cliente");
 
+                  // ── recursive tree node renderer ──────────────────────────
+                  const renderNode = (pastaId: string, depth: number = 0): React.ReactNode => {
+                    const isRoot = pastaId === ROOT_ID;
+                    const pasta = isRoot ? null : pastas.find(p => p.id === pastaId);
+                    const children = getChildPastas(isRoot ? null : pastaId);
+                    const isExpanded = expandedPastas.has(pastaId);
+                    const isSelected = selectedPastaId === pastaId;
+                    const count = countFilesInSubtree(lista, pastaId);
+
+                    const toggle = () => setExpandedPastas(prev => {
+                      const n = new Set(prev);
+                      n.has(pastaId) ? n.delete(pastaId) : n.add(pastaId);
+                      return n;
+                    });
+
+                    const nodeLabel = isRoot ? "Documentos" : (pasta?.nome ?? "");
+
+                    return (
+                      <div key={pastaId}>
+                        <div
+                          className={`group flex items-center gap-0.5 rounded cursor-pointer select-none transition-colors
+                            ${isSelected ? "bg-blue-600/25 text-white" : "hover:bg-white/5 text-gray-300"}`}
+                          style={{ paddingLeft: depth * 14 + 2, paddingRight: 2, paddingTop: 3, paddingBottom: 3 }}
+                          onClick={() => setSelectedPastaId(pastaId)}
+                        >
+                          {/* Expand/collapse chevron */}
+                          <button
+                            className="w-4 h-4 flex items-center justify-center text-gray-500 hover:text-gray-300 shrink-0"
+                            onClick={e => { e.stopPropagation(); toggle(); }}
+                          >
+                            {children.length > 0
+                              ? (isExpanded ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />)
+                              : <span className="w-3 h-3" />}
+                          </button>
+                          {/* Folder icon */}
+                          {isRoot
+                            ? <FolderOpen className={`w-4 h-4 shrink-0 ${isSelected ? "text-blue-300" : "text-yellow-400"}`} />
+                            : (isExpanded
+                                ? <FolderOpen className={`w-4 h-4 shrink-0 ${isSelected ? "text-blue-300" : "text-yellow-400"}`} />
+                                : <Folder className={`w-4 h-4 shrink-0 ${isSelected ? "text-blue-300" : "text-yellow-500/80"}`} />)}
+                          {/* Name */}
+                          {renamingId === pastaId && !isRoot ? (
+                            <input
+                              autoFocus
+                              className="flex-1 min-w-0 bg-[#0f1117] border border-blue-500 rounded px-1 text-xs text-white outline-none"
+                              value={renamingNome}
+                              onChange={e => setRenamingNome(e.target.value)}
+                              onBlur={() => { if (renamingNome.trim()) renamePasta(pastaId, renamingNome); setRenamingId(null); }}
+                              onKeyDown={e => {
+                                if (e.key === "Enter") { if (renamingNome.trim()) renamePasta(pastaId, renamingNome); setRenamingId(null); }
+                                if (e.key === "Escape") setRenamingId(null);
+                              }}
+                              onClick={e => e.stopPropagation()}
+                            />
+                          ) : (
+                            <span className="flex-1 min-w-0 truncate text-xs ml-1">{nodeLabel}</span>
+                          )}
+                          {/* File count badge */}
+                          {count > 0 && <span className="text-xs text-gray-500 ml-1 shrink-0">{count}</span>}
+                          {/* Action buttons (visible on hover) */}
+                          <div className="hidden group-hover:flex items-center gap-0.5 ml-1 shrink-0" onClick={e => e.stopPropagation()}>
+                            <button title="Nova subpasta" onClick={() => { setNovaPastaParentId(isRoot ? null : pastaId); setNovaPastaNome(""); setShowNovaPasta(true); }}
+                              className="w-5 h-5 flex items-center justify-center rounded hover:bg-blue-500/20 text-gray-500 hover:text-blue-300">
+                              <FolderPlus className="w-3 h-3" />
+                            </button>
+                            {!isRoot && <>
+                              <button title="Renomear" onClick={() => { setRenamingId(pastaId); setRenamingNome(pasta?.nome ?? ""); }}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-white/10 text-gray-500 hover:text-gray-200">
+                                <Pencil className="w-2.5 h-2.5" />
+                              </button>
+                              <button title="Excluir pasta" onClick={() => deletePasta(pastaId)}
+                                className="w-5 h-5 flex items-center justify-center rounded hover:bg-red-500/20 text-gray-500 hover:text-red-400">
+                                <Trash2 className="w-2.5 h-2.5" />
+                              </button>
+                            </>}
+                          </div>
+                        </div>
+                        {/* Children */}
+                        {isExpanded && children.length > 0 && (
+                          <div className="relative" style={{ marginLeft: depth * 14 + 10 }}>
+                            <div className="absolute left-2 top-0 bottom-0 border-l border-white/10 pointer-events-none" />
+                            {children.map(c => renderNode(c.id, depth + 1))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  };
+
+                  const filesInPasta = getFilesInPasta(lista, selectedPastaId);
+                  const selectedPastaName = selectedPastaId === ROOT_ID ? "Documentos" : (pastas.find(p => p.id === selectedPastaId)?.nome ?? "");
+
                   return (
                     <TabsContent key={tab} value={tab} className="mt-4">
                       {carregandoDocs ? (
                         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-blue-500" /></div>
+                      ) : docView === "tree" ? (
+                        <div className="flex gap-0 rounded-xl border border-white/10 overflow-hidden bg-[#0f1117]" style={{ minHeight: 400 }}>
+                          {/* ── Left: folder tree panel ── */}
+                          <div className="w-56 shrink-0 border-r border-white/10 flex flex-col">
+                            <div className="flex items-center justify-between px-2 py-2 border-b border-white/10">
+                              <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Pastas</span>
+                              <button title="Nova pasta raiz" onClick={() => { setNovaPastaParentId(null); setNovaPastaNome(""); setShowNovaPasta(true); }}
+                                className="w-6 h-6 flex items-center justify-center rounded hover:bg-blue-500/20 text-gray-500 hover:text-blue-300">
+                                <FolderPlus className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-1 py-1.5 space-y-0.5">
+                              {renderNode(ROOT_ID, 0)}
+                            </div>
+                          </div>
+
+                          {/* ── Right: file list ── */}
+                          <div className="flex-1 min-w-0 flex flex-col">
+                            {/* Breadcrumb */}
+                            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/10 bg-[#0f1117]">
+                              <FolderOpen className="w-4 h-4 text-yellow-400 shrink-0" />
+                              <span className="text-sm font-medium text-white">{selectedPastaName}</span>
+                              {filesInPasta.length > 0 && (
+                                <span className="text-xs text-gray-500 ml-1">({filesInPasta.length} arquivo{filesInPasta.length !== 1 ? "s" : ""})</span>
+                              )}
+                            </div>
+                            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+                              {filesInPasta.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-full py-12">
+                                  <Folder className="w-10 h-10 text-gray-700 mb-2" />
+                                  <p className="text-gray-600 text-sm">Pasta vazia</p>
+                                  <p className="text-gray-700 text-xs mt-1">Mova arquivos para cá ou envie novos</p>
+                                </div>
+                              ) : filesInPasta.map(arq => (
+                                <div key={arq.id} className="bg-[#1a1d27] rounded-lg border border-white/5 px-3 py-2.5 flex items-center gap-3 hover:border-white/15 transition-colors group">
+                                  {getIconForType(arq.tipoArquivo)}
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium text-white truncate">{arq.nome}</p>
+                                    <p className="text-xs text-gray-500">
+                                      {getClienteNome(arq.clienteId)} · {arq.tamanho} · {format(new Date(arq.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                                    </p>
+                                    {arq.descricao && <p className="text-xs text-gray-400 mt-0.5 truncate">{arq.descricao}</p>}
+                                  </div>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${arq.enviadoPor === "escritorio" ? "bg-blue-500/10 text-blue-400" : "bg-green-500/10 text-green-400"}`}>
+                                    {arq.enviadoPor === "escritorio" ? "Escritório" : "Cliente"}
+                                  </span>
+                                  <div className="flex gap-1 shrink-0">
+                                    <button title="Mover para pasta" onClick={() => setMoveFileTarget(arq)}
+                                      className="w-7 h-7 flex items-center justify-center rounded text-gray-500 hover:text-yellow-300 hover:bg-yellow-500/10 transition-colors">
+                                      <ArrowRight className="w-3.5 h-3.5" />
+                                    </button>
+                                    <Button size="sm" variant="ghost" onClick={() => handleDownload(arq)} disabled={downloadingId === arq.id} className="h-7 w-7 p-0 text-gray-400 hover:text-blue-300 hover:bg-blue-500/10">
+                                      {downloadingId === arq.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                                    </Button>
+                                    <Button size="sm" variant="ghost" onClick={() => deleteArquivo.mutate(arq.id)} className="h-7 w-7 p-0 text-gray-400 hover:text-red-400 hover:bg-red-500/10">
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       ) : lista.length === 0 ? (
                         <div className="bg-[#0f1117] rounded-xl border border-white/10 p-10 text-center">
                           <FolderOpen className="w-8 h-8 text-gray-600 mx-auto mb-2" />
@@ -457,32 +726,6 @@ export default function PortalGerenciar() {
                               <User className="w-3 h-3" /> Ative o portal na aba "Dados" de cada cliente
                             </p>
                           )}
-                        </div>
-                      ) : docView === "list" ? (
-                        <div className="space-y-2">
-                          {lista.map(arq => (
-                            <div key={arq.id} className="bg-[#0f1117] rounded-lg border border-white/10 p-3.5 flex items-center gap-3 hover:border-white/20 transition-colors">
-                              {getIconForType(arq.tipoArquivo)}
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{arq.nome}</p>
-                                <p className="text-xs text-gray-500">
-                                  {getClienteNome(arq.clienteId)} · {arq.tamanho} · {format(new Date(arq.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
-                                </p>
-                                {arq.descricao && <p className="text-xs text-gray-400 mt-0.5">{arq.descricao}</p>}
-                              </div>
-                              <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${arq.enviadoPor === "escritorio" ? "bg-blue-500/10 text-blue-400" : "bg-green-500/10 text-green-400"}`}>
-                                {arq.enviadoPor === "escritorio" ? "Escritório" : "Cliente"}
-                              </span>
-                              <div className="flex gap-1 shrink-0">
-                                <Button size="sm" variant="ghost" onClick={() => handleDownload(arq)} disabled={downloadingId === arq.id} className="text-gray-400 hover:text-blue-300 hover:bg-blue-500/10">
-                                  {downloadingId === arq.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => deleteArquivo.mutate(arq.id)} className="text-gray-400 hover:text-red-400 hover:bg-red-500/10">
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
                         </div>
                       ) : (
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -667,6 +910,91 @@ export default function PortalGerenciar() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* ── Dialog: Nova Pasta ───────────────────────────────────────────────── */}
+      <Dialog open={showNovaPasta} onOpenChange={setShowNovaPasta}>
+        <DialogContent className="bg-[#1a1d27] border-white/10 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderPlus className="w-4 h-4 text-yellow-400" />
+              {novaPastaParentId === null ? "Nova Pasta Raiz" : "Nova Subpasta"}
+            </DialogTitle>
+          </DialogHeader>
+          {novaPastaParentId !== null && (
+            <p className="text-xs text-gray-400">
+              Em: <span className="text-white font-medium">{pastas.find(p => p.id === novaPastaParentId)?.nome ?? "raiz"}</span>
+            </p>
+          )}
+          <div className="space-y-3 pt-1">
+            <Input
+              autoFocus
+              placeholder="Nome da pasta..."
+              value={novaPastaNome}
+              onChange={e => setNovaPastaNome(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === "Enter" && novaPastaNome.trim()) {
+                  addPasta(novaPastaNome, novaPastaParentId);
+                  setShowNovaPasta(false);
+                }
+              }}
+              className="bg-[#0f1117] border-white/10 text-white placeholder:text-gray-600"
+            />
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="ghost" onClick={() => setShowNovaPasta(false)} className="text-gray-400 hover:text-white">Cancelar</Button>
+              <Button
+                onClick={() => { if (novaPastaNome.trim()) { addPasta(novaPastaNome, novaPastaParentId); setShowNovaPasta(false); } }}
+                disabled={!novaPastaNome.trim()}
+                className="bg-yellow-500 hover:bg-yellow-600 text-black font-semibold"
+              >
+                <FolderPlus className="w-4 h-4 mr-2" /> Criar Pasta
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Dialog: Mover arquivo para pasta ─────────────────────────────────── */}
+      <Dialog open={!!moveFileTarget} onOpenChange={open => { if (!open) setMoveFileTarget(null); }}>
+        <DialogContent className="bg-[#1a1d27] border-white/10 text-white max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ArrowRight className="w-4 h-4 text-blue-400" /> Mover Arquivo
+            </DialogTitle>
+          </DialogHeader>
+          {moveFileTarget && (
+            <div className="space-y-3">
+              <p className="text-xs text-gray-400 truncate">Arquivo: <span className="text-white">{moveFileTarget.nome}</span></p>
+              <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
+                <button
+                  onClick={() => moveFileToPasta(String(moveFileTarget.id), null)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors
+                    ${!filePastas[String(moveFileTarget.id)] ? "bg-blue-600/25 text-white" : "hover:bg-white/5 text-gray-300"}`}
+                >
+                  <FolderOpen className="w-4 h-4 text-yellow-400 shrink-0" />
+                  Documentos (raiz)
+                </button>
+                {pastas.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => moveFileToPasta(String(moveFileTarget.id), p.id)}
+                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-left transition-colors
+                      ${filePastas[String(moveFileTarget.id)] === p.id ? "bg-blue-600/25 text-white" : "hover:bg-white/5 text-gray-300"}`}
+                  >
+                    <Folder className="w-4 h-4 text-yellow-500/80 shrink-0" />
+                    {p.parentId ? (
+                      <span className="text-gray-500 text-xs mr-1">{pastas.find(x => x.id === p.parentId)?.nome ?? ""}  /</span>
+                    ) : null}
+                    {p.nome}
+                  </button>
+                ))}
+              </div>
+              <div className="flex justify-end pt-1">
+                <Button variant="ghost" onClick={() => setMoveFileTarget(null)} className="text-gray-400 hover:text-white">Cancelar</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* ── Dialog: Enviar Documento ─────────────────────────────────────────── */}
       <Dialog open={showUpload} onOpenChange={setShowUpload}>
