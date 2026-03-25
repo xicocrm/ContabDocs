@@ -40,6 +40,7 @@ export const clientesTable = pgTable("clientes", {
   arquivoInscricaoMunicipalNome: text("arquivo_inscricao_municipal_nome"),
   arquivoInscricaoEstadual: text("arquivo_inscricao_estadual"),
   arquivoInscricaoEstadualNome: text("arquivo_inscricao_estadual_nome"),
+  iptuNumero: text("iptu_numero"),
   documentoPessoal: text("documento_pessoal"),
   documentoPessoalNome: text("documento_pessoal_nome"),
   comprovanteEndereco: text("comprovante_endereco"),
