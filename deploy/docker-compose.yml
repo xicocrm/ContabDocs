@@ -56,6 +56,8 @@ services:
       PORT: 3001
       NODE_ENV: production
       JWT_SECRET: ${JWT_SECRET:-contabdoc-jwt-secret-2025}
+      ADMIN_RESET_KEY: ${ADMIN_RESET_KEY:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-}
       UPLOADS_DIR: /app/uploads
     volumes:
       - uploads_data:/app/uploads

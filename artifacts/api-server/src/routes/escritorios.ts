@@ -4,6 +4,21 @@ import { eq, or } from "drizzle-orm";
 
 const router: IRouter = Router();
 
+const ALLOWED_ESCRITORIO_FIELDS = [
+  "razaoSocial", "nomeFantasia", "cnpj", "cpf", "inscricaoEstadual", "inscricaoMunicipal",
+  "crc", "slug", "email", "telefone", "celular", "site",
+  "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "estado",
+  "regimeTributario", "observacoes", "ativo", "logo",
+] as const;
+
+function pickEscritorioFields(body: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const key of ALLOWED_ESCRITORIO_FIELDS) {
+    if (body[key] !== undefined) result[key] = body[key];
+  }
+  return result;
+}
+
 router.get("/", async (req, res) => {
   try {
     const rows = await db.select().from(escritoriosTable).orderBy(escritoriosTable.id);
@@ -29,10 +44,7 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const body = { ...req.body };
-    delete body.id;
-    delete body.createdAt;
-    delete body.updatedAt;
+    const body = pickEscritorioFields(req.body);
 
     const cnpjOriginal = body.cnpj ? String(body.cnpj) : null;
     const cpfOriginal  = body.cpf  ? String(body.cpf)  : null;
@@ -90,11 +102,7 @@ router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
   try {
-    const body = { ...req.body };
-    delete body.id;
-    delete body.createdAt;
-    delete body.updatedAt;
-    // Normaliza documentos sem formatação
+    const body = pickEscritorioFields(req.body);
     if (body.cnpj) body.cnpj = String(body.cnpj).replace(/\D/g, "");
     if (body.cpf)  body.cpf  = String(body.cpf).replace(/\D/g, "");
     const rows = await db.update(escritoriosTable)

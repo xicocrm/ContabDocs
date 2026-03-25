@@ -5,6 +5,22 @@ import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
+const ALLOWED_CLIENTE_FIELDS = [
+  "escritorioId", "razaoSocial", "nomeFantasia", "cnpj", "cpf", "inscricaoEstadual",
+  "inscricaoMunicipal", "email", "telefone", "celular",
+  "cep", "logradouro", "numero", "complemento", "bairro", "cidade", "estado",
+  "regimeTributario", "naturezaJuridica", "atividadePrincipal", "dataAbertura",
+  "situacao", "observacoes", "ativo", "ativoPortal", "emailPortal",
+] as const;
+
+function pickClienteFields(body: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const key of ALLOWED_CLIENTE_FIELDS) {
+    if (body[key] !== undefined) result[key] = body[key];
+  }
+  return result;
+}
+
 router.get("/", async (req, res) => {
   try {
     let query = db.select().from(clientesTable).$dynamic();
@@ -37,10 +53,8 @@ router.get("/:id", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const body = { ...req.body };
-    delete body.id;
-    delete body.createdAt;
-    delete body.updatedAt;
+    const body: Record<string, any> = pickClienteFields(req.body);
+    if (req.body.senhaPortal) body.senhaPortal = req.body.senhaPortal;
     const eid = body.escritorioId ? parseInt(String(body.escritorioId)) : null;
     const cnpj = body.cnpj ? String(body.cnpj).replace(/\D/g, "") : null;
     const cpf  = body.cpf  ? String(body.cpf).replace(/\D/g, "")  : null;
@@ -77,10 +91,11 @@ router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
   try {
-    const body = { ...req.body };
-    delete body.id;
-    delete body.createdAt;
-    delete body.updatedAt;
+    const body = pickClienteFields(req.body);
+
+    if (req.body.senhaPortal) {
+      body.senhaPortal = req.body.senhaPortal;
+    }
 
     if (body.senhaPortal) {
       body.senhaPortal = await bcrypt.hash(body.senhaPortal, 10);

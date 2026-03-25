@@ -5,6 +5,18 @@ import bcrypt from "bcryptjs";
 
 const router: IRouter = Router();
 
+const ALLOWED_USER_FIELDS = [
+  "nome", "email", "perfil", "ativo", "permissoes",
+] as const;
+
+function pickUserFields(body: Record<string, any>): Record<string, any> {
+  const result: Record<string, any> = {};
+  for (const key of ALLOWED_USER_FIELDS) {
+    if (body[key] !== undefined) result[key] = body[key];
+  }
+  return result;
+}
+
 router.get("/", async (req, res) => {
   try {
     const rows = await db.select({
@@ -26,10 +38,11 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { senha, ...rest } = req.body;
-    const senhaHash = senha ? await bcrypt.hash(senha, 10) : undefined;
+    const fields = pickUserFields(req.body);
+    const { senha } = req.body;
+    const senhaHash = senha ? await bcrypt.hash(String(senha), 10) : undefined;
     const rows = await db.insert(usuariosTable).values({
-      ...rest,
+      ...fields,
       ...(senhaHash ? { senha: senhaHash } : {}),
     }).returning();
     const { senha: _s, ...safe } = rows[0] as any;
@@ -44,10 +57,11 @@ router.put("/:id", async (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id)) { res.status(400).json({ message: "ID inválido" }); return; }
   try {
-    const { senha, ...rest } = req.body;
-    const updates: any = { ...rest, updatedAt: new Date() };
+    const fields = pickUserFields(req.body);
+    const { senha } = req.body;
+    const updates: any = { ...fields, updatedAt: new Date() };
     if (senha) {
-      updates.senha = await bcrypt.hash(senha, 10);
+      updates.senha = await bcrypt.hash(String(senha), 10);
     }
     const rows = await db.update(usuariosTable).set(updates).where(eq(usuariosTable.id, id)).returning();
     if (!rows[0]) { res.status(404).json({ message: "Não encontrado" }); return; }

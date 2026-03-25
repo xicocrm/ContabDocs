@@ -46,14 +46,27 @@ ok "Código atualizado para a versão mais recente ($(git log --oneline -1))"
 step "3/6 - Verificando configuração"
 if [ ! -f "$DEPLOY_DIR/.env" ]; then
   warn ".env não encontrado — criando..."
+  JWT_GENERATED=$(openssl rand -base64 48 | tr -d '\n/+=')
+  RESET_KEY_GENERATED=$(openssl rand -base64 32 | tr -d '\n/+=')
   cat > "$DEPLOY_DIR/.env" <<ENVEOF
 DB_PASSWORD=${DB_PASSWORD}
 NODE_ENV=production
-JWT_SECRET=contabdoc-jwt-secret-2025
+JWT_SECRET=${JWT_GENERATED}
+ADMIN_RESET_KEY=${RESET_KEY_GENERATED}
+CORS_ORIGINS=http://187.77.229.111,http://localhost
 ENVEOF
-  ok ".env criado"
+  ok ".env criado com JWT_SECRET e ADMIN_RESET_KEY aleatórios"
 else
   ok ".env já existe"
+  if ! grep -q "ADMIN_RESET_KEY" "$DEPLOY_DIR/.env"; then
+    RESET_KEY_GENERATED=$(openssl rand -base64 32 | tr -d '\n/+=')
+    echo "ADMIN_RESET_KEY=${RESET_KEY_GENERATED}" >> "$DEPLOY_DIR/.env"
+    ok "ADMIN_RESET_KEY adicionada ao .env"
+  fi
+  if ! grep -q "CORS_ORIGINS" "$DEPLOY_DIR/.env"; then
+    echo "CORS_ORIGINS=http://187.77.229.111,http://localhost" >> "$DEPLOY_DIR/.env"
+    ok "CORS_ORIGINS adicionada ao .env"
+  fi
 fi
 
 # ── 4. Rebuild dos containers ───────────────────────────────────

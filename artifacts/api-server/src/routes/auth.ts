@@ -3,11 +3,20 @@ import { db, usuariosTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import rateLimit from "express-rate-limit";
 
 const router: IRouter = Router();
 const SECRET = process.env.JWT_SECRET || "contabdoc-jwt-secret-2025";
 
-router.post("/login", async (req, res) => {
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: "Muitas tentativas de login. Tente novamente em 15 minutos." },
+});
+
+router.post("/login", loginLimiter, async (req, res) => {
   try {
     const { email, senha } = req.body;
     if (!email || !senha) {

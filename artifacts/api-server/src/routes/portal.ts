@@ -13,14 +13,30 @@ const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(process.cwd(), "uploads
 
 if (!fs.existsSync(UPLOADS_DIR)) fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 
+const ALLOWED_EXTENSIONS = new Set([
+  ".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp",
+  ".doc", ".docx", ".xls", ".xlsx", ".csv", ".txt", ".odt", ".ods",
+  ".zip", ".rar", ".7z",
+]);
+
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, UPLOADS_DIR),
   filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
+    const ext = path.extname(file.originalname).toLowerCase();
     cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
   },
 });
-const upload = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
+
+const fileFilter = (_req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    cb(new Error(`Tipo de arquivo não permitido: ${ext}`));
+    return;
+  }
+  cb(null, true);
+};
+
+const upload = multer({ storage, fileFilter, limits: { fileSize: 20 * 1024 * 1024 } });
 
 function verifyPortalToken(authHeader?: string): { clienteId: number; escritorioId: number } | null {
   if (!authHeader?.startsWith("Bearer ")) return null;

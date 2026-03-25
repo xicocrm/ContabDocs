@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { requireAuth } from "../middleware/auth";
 import healthRouter from "./health";
 import receitaRouter from "./receita";
 import escritoriosRouter from "./escritorios";
@@ -17,6 +18,7 @@ import authRouter from "./auth";
 import portalRouter from "./portal";
 import alvarasRouter from "./alvaras";
 import extrairDocumentoRouter from "./extrair-documento";
+import tarefasRouter from "./tarefas";
 
 const router: IRouter = Router();
 
@@ -24,19 +26,21 @@ router.use(healthRouter);
 router.use("/auth", authRouter);
 router.use("/portal", portalRouter);
 router.use("/receita", receitaRouter);
-router.use("/escritorios", escritoriosRouter);
-router.use("/clientes", clientesRouter);
-router.use("/contratos", contratosRouter);
-router.use("/usuarios", usuariosRouter);
-router.use("/integracoes", integracoesRouter);
-router.use("/contas", contasRouter);
-router.use("/negociacoes", negociacoesRouter);
-router.use("/propostas", propostasRouter);
-router.use("/processos", processosRouter);
-router.use("/protocolos", protocolosRouter);
-router.use("/campanhas", campanhasRouter);
-router.use("/consultas-fiscais", consultasFiscaisRouter);
-router.use("/alvaras", alvarasRouter);
-router.use("/extrair-documento", extrairDocumentoRouter);
+
+router.use("/escritorios", requireAuth, escritoriosRouter);
+router.use("/clientes", requireAuth, clientesRouter);
+router.use("/contratos", requireAuth, contratosRouter);
+router.use("/usuarios", requireAuth, usuariosRouter);
+router.use("/integracoes", requireAuth, integracoesRouter);
+router.use("/contas", requireAuth, contasRouter);
+router.use("/negociacoes", requireAuth, negociacoesRouter);
+router.use("/propostas", requireAuth, propostasRouter);
+router.use("/processos", requireAuth, processosRouter);
+router.use("/protocolos", requireAuth, protocolosRouter);
+router.use("/campanhas", requireAuth, campanhasRouter);
+router.use("/consultas-fiscais", requireAuth, consultasFiscaisRouter);
+router.use("/alvaras", requireAuth, alvarasRouter);
+router.use("/extrair-documento", requireAuth, extrairDocumentoRouter);
+router.use("/tarefas", requireAuth, tarefasRouter);
 
 export default router;

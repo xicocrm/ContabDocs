@@ -2,7 +2,6 @@ FROM node:20-alpine AS base
 RUN npm install -g pnpm@9
 WORKDIR /app
 
-# Instalar dependências (camada cacheada separadamente do código)
 FROM base AS deps
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
@@ -11,12 +10,10 @@ COPY lib/api-zod/package.json ./lib/api-zod/
 COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
 RUN pnpm install --no-frozen-lockfile --ignore-scripts
 
-# Build
 FROM deps AS builder
 COPY . .
 RUN pnpm --filter @workspace/api-server run build
 
-# Runner enxuto
 FROM node:20-alpine AS runner
 RUN npm install -g pnpm@9
 WORKDIR /app
@@ -34,7 +31,10 @@ COPY lib/api-zod ./lib/api-zod
 COPY lib/integrations-anthropic-ai/src ./lib/integrations-anthropic-ai/src
 COPY --from=builder /app/artifacts/api-server/dist ./artifacts/api-server/dist
 
+RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
+
 ENV NODE_ENV=production
+USER node
 WORKDIR /app/artifacts/api-server
 EXPOSE 3001
 CMD ["node", "--enable-source-maps", "./dist/index.mjs"]
