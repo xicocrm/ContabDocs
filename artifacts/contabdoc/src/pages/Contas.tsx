@@ -910,7 +910,7 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                           <TableCell>
                             <span className={`text-xs font-mono ${vencido ? "text-red-400 font-semibold" : "text-muted-foreground"}`}>
                               {vencido && <AlertCircle className="w-3 h-3 inline mr-1" />}
-                              {c.dataVencimento || "—"}
+                              {formatters.displayDate(c.dataVencimento)}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -975,7 +975,7 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                             {c.valor || "R$ 0,00"}
                           </span>
                           <span className={`text-xs font-mono ${vencido ? "text-red-400" : "text-muted-foreground"}`}>
-                            {c.dataVencimento || "—"}
+                            {formatters.displayDate(c.dataVencimento)}
                           </span>
                         </div>
                         {(c.categoria || c.competencia) && (
@@ -1583,7 +1583,7 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                 {pagarTarget.dataVencimento && (
                   <div className="flex items-center justify-between mt-2">
                     <span className="text-xs text-muted-foreground">Vencimento</span>
-                    <span className="text-xs font-mono text-muted-foreground">{pagarTarget.dataVencimento}</span>
+                    <span className="text-xs font-mono text-muted-foreground">{formatters.displayDate(pagarTarget.dataVencimento)}</span>
                   </div>
                 )}
               </div>

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { SemEscritorio } from "@/components/SemEscritorio";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Loader2, Plus, Edit, Trash2, Megaphone, Mail, MessageSquare, Send, Search } from "lucide-react";
 
 interface Campanha {
@@ -48,6 +49,7 @@ export default function CampanhasPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<Partial<Campanha>>(empty);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const { data: campanhas = [], isLoading } = useQuery<Campanha[]>({
     queryKey: ["campanhas", escritorioId],
@@ -164,7 +166,7 @@ export default function CampanhasPage() {
                           <canal.icon className="w-3.5 h-3.5" />{canal.label}
                         </div>
                       </TableCell>
-                      <TableCell className="text-sm">{c.dataInicio || "—"}</TableCell>
+                      <TableCell className="text-sm">{formatters.displayDate(c.dataInicio)}</TableCell>
                       <TableCell className="text-sm font-mono">{t.toLocaleString("pt-BR")}</TableCell>
                       <TableCell className="text-sm font-mono">{a.toLocaleString("pt-BR")}</TableCell>
                       <TableCell>
@@ -178,7 +180,7 @@ export default function CampanhasPage() {
                       <TableCell><Badge variant="outline" className={`text-xs ${STATUS_MAP[c.status]?.color || ""}`}>{STATUS_MAP[c.status]?.label || c.status}</Badge></TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(c)}><Edit className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => confirm("Excluir?") && del.mutate(c.id)}><Trash2 className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget({ id: c.id, name: c.nome || `#${c.id}` })}><Trash2 className="w-4 h-4" /></Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -223,6 +225,13 @@ export default function CampanhasPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => { if (deleteTarget) { del.mutate(deleteTarget.id); setDeleteTarget(null); } }}
+        itemName={deleteTarget?.name}
+      />
     </AppLayout>
   );
 }

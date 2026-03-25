@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { formatters } from "@/lib/formatters";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,11 +142,6 @@ async function apiFetchCnpj(cnpj: string) {
 // ─────────────────────────────────────────────
 // CNAE / REGIME PREVIDENCIÁRIO
 // ─────────────────────────────────────────────
-function formatDateBR(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
-}
 
 interface CnaeInfo {
   cnaePrincipalCodigo: string;
@@ -741,7 +737,7 @@ function PanelSimples({ form, setField, cnpj, loadingSimples, onConsultar }: {
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Data da Opção</Label>
               <div className="flex items-center gap-2 h-9 px-3 rounded-md bg-secondary/50 border border-border/40 font-mono">
-                <span className="text-sm">{formatDateBR(form.dataOpcaoSimples)}</span>
+                <span className="text-sm">{formatters.displayDate(form.dataOpcaoSimples)}</span>
               </div>
             </div>
           </div>
@@ -919,7 +915,7 @@ function PanelMei({ form, setField, cnpj, loadingSimples, onConsultar }: {
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Data da Opção</Label>
               <div className="flex items-center h-9 px-3 rounded-md bg-secondary/50 border border-border/40 font-mono">
-                <span className="text-sm">{formatDateBR(form.dataOpcaoSimples)}</span>
+                <span className="text-sm">{formatters.displayDate(form.dataOpcaoSimples)}</span>
               </div>
             </div>
           </div>

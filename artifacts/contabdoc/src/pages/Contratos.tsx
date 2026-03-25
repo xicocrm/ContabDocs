@@ -159,7 +159,7 @@ export default function ContratosPage() {
                     <TableCell>{c.valorContrato || '-'}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
-                        <span className="text-sm">{c.dataVencimento || `Dia ${c.diaVencimento}`}</span>
+                        <span className="text-sm">{c.dataVencimento ? formatters.displayDate(c.dataVencimento) : `Dia ${c.diaVencimento}`}</span>
                         {c.diaVencimento && !c.dataVencimento && <span className="text-xs text-muted-foreground">Todo mês</span>}
                       </div>
                     </TableCell>

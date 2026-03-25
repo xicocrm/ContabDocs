@@ -146,7 +146,7 @@ export default function Dashboard() {
                       <div key={c.id} className="flex items-center justify-between p-3 rounded-xl bg-secondary/50 border border-border/50 hover:bg-secondary transition-colors">
                         <div>
                           <p className="font-medium text-sm text-foreground">{client?.nomeFantasia || client?.razaoSocial || `Cliente #${c.clienteId}`}</p>
-                          <p className="text-xs text-muted-foreground">Vence em: {c.dataVencimento}</p>
+                          <p className="text-xs text-muted-foreground">Vence em: {formatters.displayDate(c.dataVencimento)}</p>
                         </div>
                         <div className="px-2 py-1 rounded-md bg-warning/20 text-warning text-xs font-semibold">
                           Atenção

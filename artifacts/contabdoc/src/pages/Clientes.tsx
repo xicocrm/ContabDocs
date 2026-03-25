@@ -685,8 +685,8 @@ export default function ClientesPage() {
                             <TableCell className="font-mono font-semibold text-primary">#{c.numeroContrato}</TableCell>
                             <TableCell className="text-sm text-muted-foreground max-w-[200px] truncate">{c.objeto || '—'}</TableCell>
                             <TableCell className="font-medium">{c.valorContrato || '—'}</TableCell>
-                            <TableCell className="text-sm">{c.dataContrato || '—'}</TableCell>
-                            <TableCell className="text-sm">{c.dataVencimento || (c.diaVencimento ? `Todo dia ${c.diaVencimento}` : '—')}</TableCell>
+                            <TableCell className="text-sm">{formatters.displayDate(c.dataContrato)}</TableCell>
+                            <TableCell className="text-sm">{c.dataVencimento ? formatters.displayDate(c.dataVencimento) : (c.diaVencimento ? `Todo dia ${c.diaVencimento}` : '—')}</TableCell>
                             <TableCell><StatusContratoBadge status={c.status} /></TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { SemEscritorio } from "@/components/SemEscritorio";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Loader2, Plus, Edit, Trash2, Handshake, TrendingUp, Target, Trophy, Search } from "lucide-react";
 
 interface Negociacao {
@@ -44,6 +45,7 @@ export default function NegociacoesPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<Partial<Negociacao>>(empty);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const { data: negs = [], isLoading } = useQuery<Negociacao[]>({
     queryKey: ["negociacoes", escritorioId],
@@ -170,11 +172,11 @@ export default function NegociacoesPage() {
                           </div>
                         ) : "—"}
                       </TableCell>
-                      <TableCell className="text-sm">{n.dataPrevFechamento || "—"}</TableCell>
+                      <TableCell className="text-sm">{formatters.displayDate(n.dataPrevFechamento)}</TableCell>
                       <TableCell><Badge variant="outline" className={`text-xs ${stage.color}`}>{stage.label}</Badge></TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(n)}><Edit className="w-4 h-4" /></Button>
-                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => confirm("Excluir?") && del.mutate(n.id)}><Trash2 className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget({ id: n.id, name: n.titulo || `#${n.id}` })}><Trash2 className="w-4 h-4" /></Button>
                       </TableCell>
                     </TableRow>
                   );
@@ -215,6 +217,13 @@ export default function NegociacoesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => { if (deleteTarget) { del.mutate(deleteTarget.id); setDeleteTarget(null); } }}
+        itemName={deleteTarget?.name}
+      />
     </AppLayout>
   );
 }

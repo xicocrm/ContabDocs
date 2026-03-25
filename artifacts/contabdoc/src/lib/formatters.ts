@@ -66,6 +66,30 @@ export const formatters = {
       .replace(/(\d{2})(\d)/, "$1/$2")
       .substring(0, 10);
   },
+  competencia: (value: string) => {
+    if (!value) return "";
+    return value
+      .replace(/\D/g, "")
+      .replace(/^(\d{2})(\d)/, "$1/$2")
+      .substring(0, 7);
+  },
+  displayDate: (value?: string | null): string => {
+    if (!value) return "—";
+    const v = value.trim();
+    const isoMatch = v.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) return `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}`;
+    const brMatch = v.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (brMatch) return v;
+    return v;
+  },
+  displayDateTime: (value?: string | null): string => {
+    if (!value) return "—";
+    try {
+      const d = new Date(value);
+      if (isNaN(d.getTime())) return value;
+      return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    } catch { return value || "—"; }
+  },
   unmask: (value: string) => {
     if (!value) return "";
     return value.replace(/\D/g, "");

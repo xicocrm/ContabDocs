@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { SemEscritorio } from "@/components/SemEscritorio";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Loader2, Plus, Edit, Trash2, FileText, Send, CheckCircle2, XCircle, Search } from "lucide-react";
 
 interface Proposta {
@@ -42,6 +43,7 @@ export default function PropostasPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<Partial<Proposta>>(empty);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const { data: propostas = [], isLoading } = useQuery<Proposta[]>({
     queryKey: ["propostas", escritorioId],
@@ -151,11 +153,11 @@ export default function PropostasPage() {
                     <TableCell className="font-medium text-foreground">{p.titulo}</TableCell>
                     <TableCell className="font-mono font-semibold">{p.valor || "—"}</TableCell>
                     <TableCell className="text-sm">{p.validade || "—"}</TableCell>
-                    <TableCell className="text-sm">{p.dataEnvio || "—"}</TableCell>
+                    <TableCell className="text-sm">{formatters.displayDate(p.dataEnvio)}</TableCell>
                     <TableCell><Badge variant="outline" className={`text-xs ${STATUS_MAP[p.status]?.color || ""}`}>{STATUS_MAP[p.status]?.label || p.status}</Badge></TableCell>
                     <TableCell className="text-right">
                       <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Edit className="w-4 h-4" /></Button>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => confirm("Excluir?") && del.mutate(p.id)}><Trash2 className="w-4 h-4" /></Button>
+                      <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget({ id: p.id, name: p.titulo || p.numero || `#${p.id}` })}><Trash2 className="w-4 h-4" /></Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -196,6 +198,13 @@ export default function PropostasPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => { if (deleteTarget) { del.mutate(deleteTarget.id); setDeleteTarget(null); } }}
+        itemName={deleteTarget?.name}
+      />
     </AppLayout>
   );
 }

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useEscritorio } from "@/contexts/EscritorioContext";
 import { API } from "@/lib/api";
+import { formatters } from "@/lib/formatters";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -13,12 +14,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SemEscritorio } from "@/components/SemEscritorio";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import {
   Loader2, Plus, Edit, Trash2, Search, CheckSquare, Square,
   Clock, CheckCircle2, AlertCircle, XCircle, RefreshCw,
   CalendarDays, User, Flag, Tag, Repeat, Building2,
   AlertTriangle, CheckCheck, FileText, Hash, Briefcase,
-  Calendar, LayoutList, X
+  Calendar, LayoutList, X, MessageSquarePlus, MessageCircle
 } from "lucide-react";
 
 interface Tarefa {
@@ -50,6 +52,13 @@ interface Cliente {
   nomeFantasia?: string;
   cnpj?: string;
   cpf?: string;
+}
+
+interface ObsEntry {
+  id: string;
+  texto: string;
+  data: string;
+  autor: string;
 }
 
 const STATUS_MAP: Record<string, { label: string; color: string; icon: any; dotColor: string }> = {
@@ -104,23 +113,22 @@ function isAtrasada(t: Tarefa): boolean {
   return new Date(t.dataVencimento) < new Date(new Date().toDateString());
 }
 
-function formatDate(d?: string): string {
-  if (!d) return "—";
-  const [y, m, day] = d.split("-");
-  if (!y || !m || !day) return d;
-  return `${day}/${m}/${y}`;
+
+function parseObservacoes(raw?: string): ObsEntry[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {}
+  if (raw.trim()) {
+    return [{ id: "legacy", texto: raw, data: new Date().toISOString(), autor: "Sistema" }];
+  }
+  return [];
 }
 
-function getCompetenciaOptions(): string[] {
-  const opts: string[] = [];
-  const now = new Date();
-  for (let i = -3; i <= 12; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const y = d.getFullYear();
-    opts.push(`${m}/${y}`);
-  }
-  return opts;
+function serializeObservacoes(entries: ObsEntry[]): string {
+  if (entries.length === 0) return "";
+  return JSON.stringify(entries);
 }
 
 type FormTab = "dados" | "descricao" | "recorrencia";
@@ -139,6 +147,9 @@ export default function TarefasPage() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<Partial<Tarefa>>(EMPTY);
   const [formTab, setFormTab] = useState<FormTab>("dados");
+  const [obsEntries, setObsEntries] = useState<ObsEntry[]>([]);
+  const [newObsText, setNewObsText] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const { data: tarefas = [], isLoading } = useQuery<Tarefa[]>({
     queryKey: ["tarefas", escritorioId],
@@ -187,6 +198,8 @@ export default function TarefasPage() {
   const openNew = () => {
     setEditId(null);
     setForm(EMPTY);
+    setObsEntries([]);
+    setNewObsText("");
     setFormTab("dados");
     setOpen(true);
   };
@@ -203,8 +216,30 @@ export default function TarefasPage() {
       qtdRecorrencias: t.qtdRecorrencias || 1,
       tags: t.tags || "", observacoes: t.observacoes || "", clienteId: t.clienteId,
     });
+    setObsEntries(parseObservacoes(t.observacoes));
+    setNewObsText("");
     setFormTab("dados");
     setOpen(true);
+  };
+
+  const addObservacao = () => {
+    if (!newObsText.trim()) return;
+    const entry: ObsEntry = {
+      id: Date.now().toString(36),
+      texto: newObsText.trim(),
+      data: new Date().toISOString(),
+      autor: "Usuário",
+    };
+    const updated = [entry, ...obsEntries];
+    setObsEntries(updated);
+    setForm(f => ({ ...f, observacoes: serializeObservacoes(updated) }));
+    setNewObsText("");
+  };
+
+  const removeObservacao = (id: string) => {
+    const updated = obsEntries.filter(e => e.id !== id);
+    setObsEntries(updated);
+    setForm(f => ({ ...f, observacoes: serializeObservacoes(updated) }));
   };
 
   const handleSave = () => {
@@ -260,8 +295,6 @@ export default function TarefasPage() {
   }, [form.recorrencia, form.qtdRecorrencias]);
 
   if (!escritorioId) return <SemEscritorio />;
-
-  const competenciaOptions = getCompetenciaOptions();
 
   return (
     <AppLayout title="Tarefas" icon={<CheckSquare className="w-5 h-5" />}>
@@ -373,7 +406,7 @@ export default function TarefasPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-border/40 text-[11px] text-muted-foreground uppercase tracking-wider">
-                      <th className="w-10 pl-4 py-3 text-center">✓</th>
+                      <th className="w-10 pl-4 py-3 text-center">&#10003;</th>
                       <th className="px-4 py-3 text-left">Tarefa</th>
                       <th className="px-4 py-3 text-left hidden md:table-cell">Cliente</th>
                       <th className="px-4 py-3 text-left hidden lg:table-cell">Tipo</th>
@@ -439,7 +472,7 @@ export default function TarefasPage() {
                           <td className="px-4 py-3 hidden md:table-cell">
                             <span className={`text-xs font-mono ${atrasada ? "text-red-400 font-semibold" : "text-muted-foreground"}`}>
                               {atrasada && <AlertTriangle className="w-3 h-3 inline mr-1" />}
-                              {formatDate(t.dataVencimento)}
+                              {formatters.displayDate(t.dataVencimento)}
                             </span>
                           </td>
                           <td className="px-4 py-3 hidden lg:table-cell">
@@ -464,7 +497,7 @@ export default function TarefasPage() {
                               </Button>
                               <Button
                                 variant="ghost" size="icon"
-                                onClick={() => { if (confirm(`Excluir "${t.titulo}"?`)) deleteMut.mutate(t.id); }}
+                                onClick={() => setDeleteTarget({ id: t.id, name: t.titulo })}
                                 className="h-7 w-7 text-muted-foreground hover:text-red-400 hover:bg-red-500/10"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -486,10 +519,15 @@ export default function TarefasPage() {
         </p>
       </div>
 
-      {/* ─── Dialog Profissional ──────────────────────────────────────────── */}
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => { if (deleteTarget) { deleteMut.mutate(deleteTarget.id); setDeleteTarget(null); } }}
+        itemName={deleteTarget?.name}
+      />
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-3xl p-0 bg-card border-border/50 max-h-[92vh] overflow-hidden rounded-xl">
-          {/* Header com gradiente */}
           <div className="relative bg-gradient-to-r from-primary/90 via-indigo-600/80 to-violet-600/70 px-6 pt-5 pb-4">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iLjA1Ij48cGF0aCBkPSJNMzYgMzRoLTJ2LTRoMnYyaDR2Mmgtd3ptMC04aDJ2Mmgtdnptbi0xNmgydjJoLTJ6bTggOGgydjJoLTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
             <DialogHeader className="relative z-10">
@@ -505,7 +543,6 @@ export default function TarefasPage() {
             </DialogHeader>
           </div>
 
-          {/* Tabs */}
           <div className="flex border-b border-border/40 bg-muted/30">
             {([
               { key: "dados", label: "Dados Principais", icon: LayoutList },
@@ -527,11 +564,9 @@ export default function TarefasPage() {
             ))}
           </div>
 
-          {/* Form Content */}
           <div className="px-6 py-5 overflow-y-auto max-h-[calc(92vh-240px)]">
             {formTab === "dados" && (
               <div className="space-y-5">
-                {/* Título - campo principal */}
                 <div className="space-y-1.5">
                   <Label className="text-sm font-medium flex items-center gap-1.5">
                     Nome da Tarefa <span className="text-red-400">*</span>
@@ -544,7 +579,6 @@ export default function TarefasPage() {
                   />
                 </div>
 
-                {/* Row 1: Tipo + Departamento */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -572,7 +606,6 @@ export default function TarefasPage() {
                   </div>
                 </div>
 
-                {/* Row 2: Prioridade + Status */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -612,7 +645,6 @@ export default function TarefasPage() {
 
                 <div className="h-px bg-border/30" />
 
-                {/* Row 3: Cliente + Responsável */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -646,19 +678,19 @@ export default function TarefasPage() {
                   </div>
                 </div>
 
-                {/* Row 4: Competência + Tags */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                       <Calendar className="w-3 h-3" /> Competência
                     </Label>
-                    <Select value={form.competencia || "__none__"} onValueChange={v => setForm(f => ({ ...f, competencia: v === "__none__" ? "" : v }))}>
-                      <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Mês/Ano ref." /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">— Sem competência —</SelectItem>
-                        {competenciaOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
+                    <Input
+                      value={form.competencia || ""}
+                      onChange={e => setForm(f => ({ ...f, competencia: formatters.competencia(e.target.value) }))}
+                      placeholder="MM/AAAA"
+                      maxLength={7}
+                      className="bg-background h-10 font-mono"
+                    />
+                    <p className="text-[10px] text-muted-foreground">Ex: 01/2026</p>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -675,7 +707,6 @@ export default function TarefasPage() {
 
                 <div className="h-px bg-border/30" />
 
-                {/* Row 5: Datas */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -732,18 +763,68 @@ export default function TarefasPage() {
 
                 <div className="h-px bg-border/30" />
 
-                <div className="space-y-1.5">
+                <div className="space-y-3">
                   <Label className="text-sm font-medium flex items-center gap-1.5">
-                    <AlertCircle className="w-4 h-4 text-yellow-400" /> Observações Internas
+                    <MessageCircle className="w-4 h-4 text-yellow-400" /> Observações Internas
                   </Label>
-                  <p className="text-xs text-muted-foreground">Anotações internas, alertas ou informações complementares</p>
-                  <Textarea
-                    value={form.observacoes || ""}
-                    onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
-                    placeholder="Informações adicionais, alertas, pendências..."
-                    className="bg-background resize-none min-h-[100px] text-sm leading-relaxed"
-                    rows={4}
-                  />
+                  <p className="text-xs text-muted-foreground">Adicione anotações internas, alertas ou informações complementares</p>
+
+                  <div className="flex gap-2">
+                    <Textarea
+                      value={newObsText}
+                      onChange={e => setNewObsText(e.target.value)}
+                      placeholder="Digite uma nova observação..."
+                      className="bg-background resize-none text-sm flex-1"
+                      rows={2}
+                      onKeyDown={e => { if (e.key === "Enter" && e.ctrlKey) { e.preventDefault(); addObservacao(); } }}
+                    />
+                    <Button
+                      type="button"
+                      onClick={addObservacao}
+                      disabled={!newObsText.trim()}
+                      className="bg-yellow-600 hover:bg-yellow-700 text-white self-end gap-1.5 shrink-0"
+                    >
+                      <MessageSquarePlus className="w-4 h-4" />
+                      Adicionar
+                    </Button>
+                  </div>
+
+                  {obsEntries.length > 0 && (
+                    <div className="space-y-2 mt-3 max-h-[240px] overflow-y-auto pr-1">
+                      {obsEntries.map((obs, idx) => (
+                        <div key={obs.id} className="group relative rounded-lg border border-border/40 bg-muted/30 p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1">
+                              <p className="text-sm text-foreground whitespace-pre-wrap">{obs.texto}</p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="text-[10px] text-muted-foreground">
+                                  {new Date(obs.data).toLocaleDateString("pt-BR")} às {new Date(obs.data).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                                <span className="text-[10px] text-primary/60">• {obs.autor}</span>
+                              </div>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeObservacao(obs.id)}
+                              className="h-6 w-6 text-muted-foreground hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {obsEntries.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground border border-dashed border-border/30 rounded-lg">
+                      <MessageCircle className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                      <p className="text-xs">Nenhuma observação registrada</p>
+                      <p className="text-[10px] opacity-60 mt-0.5">Ctrl+Enter para adicionar rapidamente</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -802,7 +883,6 @@ export default function TarefasPage() {
             )}
           </div>
 
-          {/* Footer */}
           <div className="flex items-center justify-between px-6 py-4 bg-muted/30 border-t border-border/40">
             <Button variant="ghost" onClick={() => setOpen(false)} className="text-muted-foreground gap-2">
               <X className="w-4 h-4" /> Descartar

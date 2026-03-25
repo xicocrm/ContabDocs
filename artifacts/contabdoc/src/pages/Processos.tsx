@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SemEscritorio } from "@/components/SemEscritorio";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import {
   Loader2, Plus, Edit, Trash2, ClipboardCheck, Search, Clock,
   CheckCircle2, AlertCircle, FileSearch, X, ChevronDown, ChevronUp,
@@ -163,6 +164,7 @@ export default function ProcessosPage() {
   const [iaText, setIaText]           = useState("");
   const [iaSending, setIaSending]     = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const { data: processos = [], isLoading } = useQuery<Processo[]>({
     queryKey: ["processos", escritorioId],
@@ -397,7 +399,7 @@ Máximo 3 parágrafos curtos. Linguagem formal brasileira.`;
                     <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                       {p.dataAbertura && (
                         <span className="hidden lg:flex items-center gap-1 text-xs text-muted-foreground">
-                          <Calendar className="w-3 h-3" />{p.dataAbertura}
+                          <Calendar className="w-3 h-3" />{formatters.displayDate(p.dataAbertura)}
                         </span>
                       )}
                       <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium ${pr.color}`}>
@@ -414,7 +416,7 @@ Máximo 3 parágrafos curtos. Linguagem formal brasileira.`;
                       <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-primary" onClick={() => openEdit(p)}>
                         <Edit className="w-3.5 h-3.5" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive" onClick={() => confirm("Excluir este processo?") && del.mutate(p.id)}>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 hover:text-destructive" onClick={() => setDeleteTarget({ id: p.id, name: p.titulo || p.numero || `#${p.id}` })}>
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
@@ -748,6 +750,13 @@ Máximo 3 parágrafos curtos. Linguagem formal brasileira.`;
           </div>
         </div>
       )}
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => { if (deleteTarget) { del.mutate(deleteTarget.id); setDeleteTarget(null); } }}
+        itemName={deleteTarget?.name}
+      />
 
       <style>{`
         @keyframes slideInRight {

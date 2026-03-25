@@ -15,6 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { SemEscritorio } from "@/components/SemEscritorio";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import {
   Loader2, Plus, Edit, Trash2, Package, Search, Clock, CheckCircle2,
   AlertCircle, PackageCheck, History, FileText, Printer, ChevronRight,
@@ -71,6 +72,7 @@ export default function ProtocolosPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<Partial<Protocolo>>(empty);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   // Gerar Protocolo fields
   const [clienteId, setClienteId] = useState("");
@@ -491,9 +493,9 @@ export default function ProtocolosPage() {
                       <TableCell className="font-medium text-foreground max-w-[160px] truncate">{p.assunto}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">{p.tipo || "—"}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{p.orgao || "—"}</TableCell>
-                      <TableCell className="text-sm font-mono">{p.dataProtocolo || "—"}</TableCell>
+                      <TableCell className="text-sm font-mono">{formatters.displayDate(p.dataProtocolo)}</TableCell>
                       <TableCell className={`text-sm font-mono ${p.status === "pendente" && p.dataPrazo ? "text-red-400" : ""}`}>
-                        {p.dataPrazo || "—"}
+                        {formatters.displayDate(p.dataPrazo)}
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">{p.responsavel || "—"}</TableCell>
                       <TableCell>
@@ -504,7 +506,7 @@ export default function ProtocolosPage() {
                       <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => openEdit(p)}><Edit className="w-4 h-4" /></Button>
                         <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10"
-                          onClick={() => confirm("Excluir este protocolo?") && del.mutate(p.id)}>
+                          onClick={() => setDeleteTarget({ id: p.id, name: p.assunto || p.numero || `#${p.id}` })}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </TableCell>
@@ -585,6 +587,13 @@ export default function ProtocolosPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => { if (deleteTarget) { del.mutate(deleteTarget.id); setDeleteTarget(null); } }}
+        itemName={deleteTarget?.name}
+      />
     </AppLayout>
   );
 }
