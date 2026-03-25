@@ -186,6 +186,7 @@ export default function ContasPage() {
   const [contaPagarEditId, setContaPagarEditId] = useState<number | null>(null);
   const [pagarOpen, setPagarOpen] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{ url: string; name: string; type: string } | null>(null);
   const [pagarTarget, setPagarTarget] = useState<Conta | null>(null);
   const [pagarForm, setPagarForm] = useState({ dataPagamento: "", formaPagamento: "", observacoes: "" });
 
@@ -451,6 +452,16 @@ export default function ContasPage() {
   })();
 
   const totalHonorarios = Math.max(0, subtotalHonorarios - descontoCalculado);
+
+  const openFilePreview = useCallback((file: File) => {
+    const url = URL.createObjectURL(file);
+    setPreviewFile({ url, name: file.name, type: file.type });
+  }, []);
+
+  const closeFilePreview = useCallback(() => {
+    if (previewFile) URL.revokeObjectURL(previewFile.url);
+    setPreviewFile(null);
+  }, [previewFile]);
 
   const extractFileData = useCallback(async (file: File, target: "honorarios" | "pagar") => {
     const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"];
@@ -1291,9 +1302,14 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => { setAnexo(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="h-8 w-8 text-red-400 hover:bg-red-500/10">
-                    <X className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => openFilePreview(anexo)} className="h-8 w-8 text-primary hover:bg-primary/10" title="Visualizar arquivo">
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => { setAnexo(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="h-8 w-8 text-red-400 hover:bg-red-500/10">
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               )}
               <p className="text-xs text-muted-foreground/60 mt-2">PDF e imagens terão dados extraídos automaticamente para preencher o formulário.</p>
@@ -1508,9 +1524,14 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                       </p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => { setContaPagarAnexo(null); if (contaPagarFileRef.current) contaPagarFileRef.current.value = ""; }} className="h-8 w-8 text-red-400 hover:bg-red-500/10">
-                    <X className="w-4 h-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => openFilePreview(contaPagarAnexo)} className="h-8 w-8 text-primary hover:bg-primary/10" title="Visualizar arquivo">
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => { setContaPagarAnexo(null); if (contaPagarFileRef.current) contaPagarFileRef.current.value = ""; }} className="h-8 w-8 text-red-400 hover:bg-red-500/10">
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
@@ -1620,6 +1641,62 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
               <CheckCircle2 className="w-4 h-4" />
               Confirmar Pagamento
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!previewFile} onOpenChange={v => { if (!v) closeFilePreview(); }}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0 bg-card border-border/50 overflow-hidden rounded-xl">
+          <div className="relative px-6 pt-5 pb-4 bg-gradient-to-r from-blue-600/80 via-indigo-600/70 to-violet-600/60">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3 text-white text-lg font-semibold">
+                <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <Eye className="w-5 h-5 text-white" />
+                </div>
+                {previewFile?.name || "Visualizar Arquivo"}
+              </DialogTitle>
+              <DialogDescription className="text-white/70 text-sm mt-1">
+                Visualização do documento anexado
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="p-4 overflow-auto" style={{ maxHeight: "calc(90vh - 120px)" }}>
+            {previewFile?.type === "application/pdf" ? (
+              <iframe
+                src={previewFile.url}
+                className="w-full rounded-lg border border-border/30"
+                style={{ height: "70vh" }}
+                title={previewFile.name}
+              />
+            ) : previewFile?.type.startsWith("image/") ? (
+              <div className="flex items-center justify-center">
+                <img
+                  src={previewFile.url}
+                  alt={previewFile.name}
+                  className="max-w-full max-h-[70vh] rounded-lg object-contain"
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                <FileText className="w-16 h-16 mb-4 opacity-40" />
+                <p className="text-lg font-medium">Pré-visualização não disponível</p>
+                <p className="text-sm mt-1">Este tipo de arquivo não pode ser exibido diretamente.</p>
+                <Button
+                  variant="outline"
+                  className="mt-4 gap-2"
+                  onClick={() => {
+                    if (previewFile) {
+                      const a = document.createElement("a");
+                      a.href = previewFile.url;
+                      a.download = previewFile.name;
+                      a.click();
+                    }
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                  Baixar Arquivo
+                </Button>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
