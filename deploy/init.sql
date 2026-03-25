@@ -1,6 +1,7 @@
 -- ContabDOC - Script de inicialização completo do banco de dados
--- Cria todas as tabelas (idempotente - usa IF NOT EXISTS)
+-- Idempotente: seguro para rodar múltiplas vezes (IF NOT EXISTS + ADD COLUMN IF NOT EXISTS)
 
+-- ─── Tabela: escritorios ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS escritorios (
   id SERIAL PRIMARY KEY,
   tipo TEXT NOT NULL DEFAULT 'PJ',
@@ -20,15 +21,13 @@ CREATE TABLE IF NOT EXISTS escritorios (
   municipio TEXT,
   uf TEXT,
   situacao TEXT,
-  slug TEXT UNIQUE,
+  slug TEXT,
   logo_url TEXT,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
--- Migrações retroativas para escritórios existentes
-ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS logo_url TEXT;
-
+-- ─── Tabela: clientes ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS clientes (
   id SERIAL PRIMARY KEY,
   escritorio_id INTEGER,
@@ -56,10 +55,22 @@ CREATE TABLE IF NOT EXISTS clientes (
   email_portal TEXT,
   senha_portal TEXT,
   ativo_portal BOOLEAN DEFAULT false,
+  juceb_numero TEXT,
+  juceb_data TEXT,
+  juceb_situacao TEXT,
+  juceb_observacoes TEXT,
+  juceb_uf TEXT DEFAULT 'BA',
+  inscricao_municipal TEXT,
+  inscricao_estadual TEXT,
+  arquivo_inscricao_municipal TEXT,
+  arquivo_inscricao_municipal_nome TEXT,
+  arquivo_inscricao_estadual TEXT,
+  arquivo_inscricao_estadual_nome TEXT,
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: usuarios ────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS usuarios (
   id SERIAL PRIMARY KEY,
   nome TEXT NOT NULL,
@@ -72,6 +83,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: contratos ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS contratos (
   id SERIAL PRIMARY KEY,
   cliente_id INTEGER NOT NULL,
@@ -87,6 +99,7 @@ CREATE TABLE IF NOT EXISTS contratos (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: integracoes ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS integracoes (
   id SERIAL PRIMARY KEY,
   nome TEXT NOT NULL,
@@ -96,6 +109,7 @@ CREATE TABLE IF NOT EXISTS integracoes (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: contas ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS contas (
   id SERIAL PRIMARY KEY,
   escritorio_id INTEGER NOT NULL,
@@ -114,6 +128,7 @@ CREATE TABLE IF NOT EXISTS contas (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: negociacoes ─────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS negociacoes (
   id SERIAL PRIMARY KEY,
   escritorio_id INTEGER NOT NULL,
@@ -133,6 +148,7 @@ CREATE TABLE IF NOT EXISTS negociacoes (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: propostas ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS propostas (
   id SERIAL PRIMARY KEY,
   escritorio_id INTEGER NOT NULL,
@@ -151,18 +167,25 @@ CREATE TABLE IF NOT EXISTS propostas (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: processos ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS processos (
   id SERIAL PRIMARY KEY,
   escritorio_id INTEGER NOT NULL,
   cliente_id INTEGER,
   numero TEXT NOT NULL,
   tipo TEXT,
+  orgao TEXT,
+  protocolo_orgao TEXT,
+  prioridade TEXT DEFAULT 'normal',
   tribunal TEXT,
   vara TEXT,
   comarca TEXT,
   descricao TEXT,
+  descricao_ia TEXT,
   valor_causa TEXT,
   status TEXT NOT NULL DEFAULT 'ativo',
+  cc_email TEXT,
+  cc_whatsapp TEXT,
   data_abertura TEXT,
   data_ultimo_andamento TEXT,
   data_encerramento TEXT,
@@ -171,6 +194,7 @@ CREATE TABLE IF NOT EXISTS processos (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: protocolos ──────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS protocolos (
   id SERIAL PRIMARY KEY,
   escritorio_id INTEGER NOT NULL,
@@ -189,6 +213,7 @@ CREATE TABLE IF NOT EXISTS protocolos (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: campanhas ───────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS campanhas (
   id SERIAL PRIMARY KEY,
   escritorio_id INTEGER NOT NULL,
@@ -208,6 +233,7 @@ CREATE TABLE IF NOT EXISTS campanhas (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: consultas_fiscais ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS consultas_fiscais (
   id SERIAL PRIMARY KEY,
   escritorio_id INTEGER NOT NULL,
@@ -224,6 +250,7 @@ CREATE TABLE IF NOT EXISTS consultas_fiscais (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: portal_arquivos ─────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS portal_arquivos (
   id SERIAL PRIMARY KEY,
   escritorio_id INTEGER NOT NULL,
@@ -239,16 +266,84 @@ CREATE TABLE IF NOT EXISTS portal_arquivos (
   updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Colunas adicionais (idempotentes)
-ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE;
+-- ─── Tabela: alvaras ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS alvaras (
+  id SERIAL PRIMARY KEY,
+  cliente_id INTEGER NOT NULL,
+  tipo TEXT NOT NULL,
+  numero TEXT,
+  orgao_expedidor TEXT,
+  data_emissao TEXT,
+  vencimento TEXT,
+  status TEXT DEFAULT 'ativo',
+  arquivo TEXT,
+  arquivo_nome TEXT,
+  observacoes TEXT,
+  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
+-- ─── Tabela: impostos ────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS impostos (
+  id SERIAL PRIMARY KEY,
+  escritorio_id INTEGER NOT NULL,
+  cliente_id INTEGER,
+  tipo TEXT NOT NULL DEFAULT '',
+  competencia TEXT NOT NULL DEFAULT '',
+  vencimento TEXT,
+  valor TEXT,
+  status TEXT NOT NULL DEFAULT 'pendente',
+  arquivo_caminho TEXT,
+  arquivo_nome TEXT,
+  observacoes TEXT,
+  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
+-- ─── Migrações idempotentes (ADD COLUMN IF NOT EXISTS) ───────────────────────
+
+-- escritorios: colunas adicionadas em versões posteriores
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS slug TEXT;
 ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS cpf TEXT;
+
+-- clientes: colunas adicionadas em versões posteriores
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cpf TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS codigo_cliente TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS email_portal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS senha_portal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS ativo_portal BOOLEAN DEFAULT false;
-ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS socios TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS regime_tributario TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS atividade_principal TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS juceb_numero TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS juceb_data TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS juceb_situacao TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS juceb_observacoes TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS juceb_uf TEXT DEFAULT 'BA';
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS inscricao_municipal TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS inscricao_estadual TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_municipal TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_municipal_nome TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_estadual TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_estadual_nome TEXT;
 
--- Garante que o usuário admin sempre existe com a senha correta
+-- usuarios: colunas adicionadas em versões posteriores
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha TEXT;
+ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS permissoes TEXT;
+
+-- processos: colunas adicionadas em versões posteriores
+ALTER TABLE processos ADD COLUMN IF NOT EXISTS orgao TEXT;
+ALTER TABLE processos ADD COLUMN IF NOT EXISTS protocolo_orgao TEXT;
+ALTER TABLE processos ADD COLUMN IF NOT EXISTS prioridade TEXT DEFAULT 'normal';
+ALTER TABLE processos ADD COLUMN IF NOT EXISTS descricao_ia TEXT;
+ALTER TABLE processos ADD COLUMN IF NOT EXISTS cc_email TEXT;
+ALTER TABLE processos ADD COLUMN IF NOT EXISTS cc_whatsapp TEXT;
+
+-- ─── Índice único para slug (seguro se já existir) ───────────────────────────
+CREATE UNIQUE INDEX IF NOT EXISTS escritorios_slug_key ON escritorios (slug) WHERE slug IS NOT NULL;
+
+-- ─── Usuário admin padrão ─────────────────────────────────────────────────────
 INSERT INTO usuarios (nome, email, senha, perfil, ativo)
 VALUES (
   'Administrador',
@@ -262,7 +357,7 @@ ON CONFLICT (email) DO UPDATE SET
   perfil = 'admin',
   ativo  = true;
 
--- Auto-gera slug para escritórios sem slug (somente se ainda estiver NULL)
+-- ─── Auto-gera slug para escritórios sem slug ─────────────────────────────────
 DO $$
 DECLARE
   r RECORD;
