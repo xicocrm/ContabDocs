@@ -255,6 +255,7 @@ interface GovernoCampos {
   arquivoInscricaoMunicipalNome: string;
   arquivoInscricaoEstadual: string;
   arquivoInscricaoEstadualNome: string;
+  iptuNumero?: string;
 }
 
 interface TabGovernoProps {
@@ -450,8 +451,8 @@ export function TabGoverno({
                   onFormChange("arquivoInscricaoMunicipalNome", "");
                 }}
                 onExtracted={(dados) => {
-                  if (dados.inscricaoMunicipal) onFormChange("inscricaoMunicipal", dados.inscricaoMunicipal);
-                  if (dados.numero && !form.inscricaoMunicipal) onFormChange("inscricaoMunicipal", dados.numero);
+                  const im = dados.inscricaoMunicipal || dados.numero || dados.im || dados.inscricao || "";
+                  if (im) onFormChange("inscricaoMunicipal", im);
                 }}
               />
             </div>
@@ -486,9 +487,25 @@ export function TabGoverno({
                   onFormChange("arquivoInscricaoEstadualNome", "");
                 }}
                 onExtracted={(dados) => {
-                  if (dados.inscricaoEstadual) onFormChange("inscricaoEstadual", dados.inscricaoEstadual);
-                  if (dados.numero && !form.inscricaoEstadual) onFormChange("inscricaoEstadual", dados.numero);
+                  const ie = dados.inscricaoEstadual || dados.numero || dados.ie || dados.inscricao || "";
+                  if (ie) onFormChange("inscricaoEstadual", ie);
                 }}
+              />
+            </div>
+          </div>
+
+          {/* IPTU */}
+          <div className="p-4 rounded-xl bg-secondary/30 border border-border/40 space-y-3">
+            <p className="text-xs font-semibold text-orange-400 uppercase tracking-wider flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-orange-400" /> IPTU
+            </p>
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Número do IPTU / Inscrição Imobiliária</Label>
+              <Input
+                value={form.iptuNumero || ""}
+                onChange={e => onFormChange("iptuNumero", e.target.value)}
+                placeholder="Ex: 1234.5678.0001"
+                className="bg-background/60 font-mono"
               />
             </div>
           </div>
