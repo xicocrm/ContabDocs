@@ -23,7 +23,8 @@ import {
   Calendar, FileText, CreditCard, Receipt, Download,
   Bell, LayoutGrid, List, ArrowUpDown, Clock, XCircle,
   Building2, Eye, Send, X, ChevronDown, Sparkles, User,
-  Tag, Upload, Paperclip, Percent, FileDown
+  Tag, Upload, Paperclip, Percent, FileDown, Barcode,
+  QrCode, Store
 } from "lucide-react";
 
 interface Conta {
@@ -106,12 +107,6 @@ const emptyHonorarios = (): HonorariosForm => {
   };
 };
 
-const empty: Partial<Conta> = {
-  tipo: "receber", status: "pendente", descricao: "", valor: "",
-  categoria: "", competencia: "", dataVencimento: "", dataPagamento: "",
-  dataEmissao: "", formaPagamento: "", numeroDocumento: "", parcela: "",
-  observacoes: "",
-};
 
 const STATUS_MAP: Record<string, { label: string; color: string; dotColor: string; icon: any }> = {
   pendente:  { label: "Pendente",  color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", dotColor: "bg-yellow-400", icon: Clock },
@@ -125,11 +120,6 @@ const CATEGORIAS = [
   "Honorários", "Mensalidade", "Consultoria", "Certidão", "Alvará",
   "Imposto", "Taxa", "Folha de Pagamento", "Aluguel", "Energia",
   "Internet", "Telefone", "Material", "Software", "Marketing", "Outros",
-];
-
-const FORMAS_PAGAMENTO = [
-  "Pix", "Boleto", "Transferência", "Cartão de Crédito", "Cartão de Débito",
-  "Dinheiro", "Cheque", "Depósito", "Débito Automático",
 ];
 
 const PERIODOS = [
@@ -176,17 +166,27 @@ export default function ContasPage() {
   const [periodoFilter, setPeriodoFilter] = useState("mes");
   const [clienteFilter, setClienteFilter] = useState("todos");
   const [viewMode, setViewMode] = useState<ViewMode>("tabela");
-  const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
-  const [form, setForm] = useState<Partial<Conta>>(empty);
-  const [formTab, setFormTab] = useState<"dados" | "pagamento" | "obs">("dados");
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [honorariosOpen, setHonorariosOpen] = useState(false);
   const [honorariosForm, setHonorariosForm] = useState<HonorariosForm>(emptyHonorarios());
+  const [honorariosEditId, setHonorariosEditId] = useState<number | null>(null);
   const [anexo, setAnexo] = useState<File | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [contaPagarOpen, setContaPagarOpen] = useState(false);
+  const [contaPagarForm, setContaPagarForm] = useState({
+    fornecedor: "", valor: "", categoria: "", dataVencimento: "",
+    linhaDigitavel: "", pixCopiaCola: "", observacoes: "",
+  });
+  const [contaPagarAnexo, setContaPagarAnexo] = useState<File | null>(null);
+  const [contaPagarDragOver, setContaPagarDragOver] = useState(false);
+  const contaPagarFileRef = useRef<HTMLInputElement>(null);
+  const [contaPagarEditId, setContaPagarEditId] = useState<number | null>(null);
+  const [pagarOpen, setPagarOpen] = useState(false);
+  const [pagarTarget, setPagarTarget] = useState<Conta | null>(null);
+  const [pagarForm, setPagarForm] = useState({ dataPagamento: "", formaPagamento: "", observacoes: "" });
 
   const { data: contas = [], isLoading } = useQuery<Conta[]>({
     queryKey: ["contas", escritorioId],
@@ -205,8 +205,6 @@ export default function ContasPage() {
       editId ? API.put(`/contas/${editId}`, data) : API.post("/contas", { ...data, escritorioId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["contas", escritorioId] });
-      toast({ title: editId ? "Fatura atualizada!" : "Fatura criada!" });
-      setOpen(false);
     },
     onError: (e: Error) => toast({ title: "Erro ao salvar", description: e.message, variant: "destructive" }),
   });
@@ -250,20 +248,172 @@ export default function ContasPage() {
     return c ? (c.razaoSocial || c.nomeFantasia || `#${id}`) : `#${id}`;
   };
 
-  const openEdit = (c: Conta) => { setForm(c); setEditId(c.id); setFormTab("dados"); setOpen(true); };
-
-  const handleSave = () => {
-    if (!form.descricao?.trim()) {
-      toast({ title: "Informe a descrição da fatura", variant: "destructive" });
-      return;
+  const openEdit = (c: Conta) => {
+    if (c.tipo === "receber") {
+      setHonorariosEditId(c.id);
+      const obsLines = (c.observacoes || "").split("\n");
+      const servicos: ServicoItem[] = [];
+      let formaPag = c.formaPagamento || "";
+      let descontoVal = "";
+      let descontoTip: "fixo" | "percentual" = "fixo";
+      let obsFinal = "";
+      for (const line of obsLines) {
+        const match = line.match(/^(.+):\s*(R\$\s*[\d.,]+)$/);
+        if (match && !line.startsWith("Desconto:") && !line.startsWith("Pagamento:") && !line.startsWith("Arquivo anexo:") && !line.startsWith("Obs:")) {
+          servicos.push({ id: crypto.randomUUID(), descricao: match[1].trim(), valor: match[2].trim() });
+        } else if (line.startsWith("Desconto:")) {
+          const dMatch = line.match(/Desconto:\s*-?(R\$\s*[\d.,]+)\s*\((.+)\)/);
+          if (dMatch) {
+            descontoVal = dMatch[1].trim();
+            descontoTip = dMatch[2].includes("percentual") || dMatch[2].includes("%") ? "percentual" : "fixo";
+            if (descontoTip === "percentual") {
+              const pctMatch = dMatch[2].match(/([\d.,]+)%/);
+              if (pctMatch) descontoVal = pctMatch[1];
+            }
+          }
+        } else if (line.startsWith("Pagamento:")) {
+          formaPag = line.replace("Pagamento:", "").trim();
+        } else if (line.startsWith("Obs:")) {
+          obsFinal = line.replace("Obs:", "").trim();
+        }
+      }
+      if (servicos.length === 0) {
+        servicos.push({ id: crypto.randomUUID(), descricao: c.descricao.replace(/^Honorários\s*-\s*/, ""), valor: c.valor || "" });
+      }
+      const compParts = (c.competencia || "").split("/");
+      const mesIdx = compParts[0] ? parseInt(compParts[0]) - 1 : new Date().getMonth();
+      setHonorariosForm({
+        clienteId: c.clienteId ? String(c.clienteId) : "",
+        mes: MESES[mesIdx] || MESES[0],
+        ano: compParts[1] || String(new Date().getFullYear()),
+        dataEmissao: c.dataEmissao || new Date().toLocaleDateString("pt-BR"),
+        dataVencimento: c.dataVencimento || "",
+        numeroRecibo: c.numeroDocumento || "",
+        servicos,
+        formaPagamento: formaPag,
+        descontoValor: descontoVal,
+        descontoTipo: descontoTip,
+        descontoPrazo: "",
+        observacoes: obsFinal,
+      });
+      setAnexo(null);
+      setHonorariosOpen(true);
+    } else {
+      setContaPagarEditId(c.id);
+      const obsLines = (c.observacoes || "").split("\n");
+      let linha = "", pix = "", obs = "";
+      for (const line of obsLines) {
+        if (line.startsWith("Linha Digitável:")) linha = line.replace("Linha Digitável:", "").trim();
+        else if (line.startsWith("PIX:")) pix = line.replace("PIX:", "").trim();
+        else if (line.startsWith("Arquivo:")) { /* skip */ }
+        else if (line.trim()) obs += (obs ? "\n" : "") + line;
+      }
+      setContaPagarForm({
+        fornecedor: c.descricao || "",
+        valor: c.valor || "",
+        categoria: c.categoria || "",
+        dataVencimento: c.dataVencimento || "",
+        linhaDigitavel: linha,
+        pixCopiaCola: pix,
+        observacoes: obs,
+      });
+      setContaPagarAnexo(null);
+      setContaPagarOpen(true);
     }
-    save.mutate(form);
   };
 
   const openHonorarios = () => {
+    setHonorariosEditId(null);
     setHonorariosForm(emptyHonorarios());
     setAnexo(null);
     setHonorariosOpen(true);
+  };
+
+  const openContaPagar = () => {
+    setContaPagarEditId(null);
+    setContaPagarForm({ fornecedor: "", valor: "", categoria: "", dataVencimento: "", linhaDigitavel: "", pixCopiaCola: "", observacoes: "" });
+    setContaPagarAnexo(null);
+    setContaPagarOpen(true);
+  };
+
+  const handleContaPagarSave = () => {
+    if (!contaPagarForm.fornecedor.trim()) {
+      toast({ title: "Informe o nome do fornecedor", variant: "destructive" });
+      return;
+    }
+    if (!contaPagarForm.dataVencimento) {
+      toast({ title: "Informe a data de vencimento", variant: "destructive" });
+      return;
+    }
+    const obsLines: string[] = [];
+    if (contaPagarForm.linhaDigitavel) obsLines.push(`Linha Digitável: ${contaPagarForm.linhaDigitavel}`);
+    if (contaPagarForm.pixCopiaCola) obsLines.push(`PIX: ${contaPagarForm.pixCopiaCola}`);
+    if (contaPagarAnexo) obsLines.push(`Arquivo: ${contaPagarAnexo.name}`);
+    if (contaPagarForm.observacoes) obsLines.push(contaPagarForm.observacoes);
+
+    const payload: Partial<Conta> = {
+      tipo: "pagar",
+      status: "pendente",
+      descricao: contaPagarForm.fornecedor,
+      valor: contaPagarForm.valor,
+      categoria: contaPagarForm.categoria,
+      dataVencimento: contaPagarForm.dataVencimento,
+      observacoes: obsLines.join("\n"),
+    };
+
+    if (contaPagarEditId) {
+      setEditId(contaPagarEditId);
+      save.mutate(payload, {
+        onSuccess: () => {
+          setContaPagarOpen(false);
+          setContaPagarEditId(null);
+          setEditId(null);
+        },
+      });
+    } else {
+      setEditId(null);
+      save.mutate(payload, {
+        onSuccess: () => {
+          setContaPagarOpen(false);
+        },
+      });
+    }
+  };
+
+  const openPagar = (c: Conta) => {
+    setPagarTarget(c);
+    setPagarForm({
+      dataPagamento: new Date().toLocaleDateString("pt-BR"),
+      formaPagamento: c.formaPagamento || "",
+      observacoes: "",
+    });
+    setPagarOpen(true);
+  };
+
+  const handleConfirmarPagamento = () => {
+    if (!pagarTarget) return;
+    if (!pagarForm.dataPagamento) {
+      toast({ title: "Informe a data do pagamento", variant: "destructive" });
+      return;
+    }
+    setEditId(pagarTarget.id);
+    const obsUpdate = pagarTarget.observacoes
+      ? pagarTarget.observacoes + (pagarForm.observacoes ? `\nPago: ${pagarForm.observacoes}` : "")
+      : pagarForm.observacoes || "";
+
+    save.mutate({
+      ...pagarTarget,
+      status: "pago",
+      dataPagamento: pagarForm.dataPagamento,
+      formaPagamento: pagarForm.formaPagamento || pagarTarget.formaPagamento,
+      observacoes: obsUpdate,
+    }, {
+      onSuccess: () => {
+        setPagarOpen(false);
+        setPagarTarget(null);
+        setEditId(null);
+      },
+    });
   };
 
   const selectedClienteHon = clientes.find(c => String(c.id) === honorariosForm.clienteId);
@@ -341,6 +491,12 @@ export default function ContasPage() {
     if (anexo) obsLines.push(`Arquivo anexo: ${anexo.name}`);
     if (honorariosForm.observacoes) obsLines.push(`Obs: ${honorariosForm.observacoes}`);
 
+    if (honorariosEditId) {
+      setEditId(honorariosEditId);
+    } else {
+      setEditId(null);
+    }
+
     save.mutate({
       tipo: "receber",
       status: "pendente",
@@ -357,8 +513,10 @@ export default function ContasPage() {
     }, {
       onSuccess: () => {
         setHonorariosOpen(false);
+        setHonorariosEditId(null);
         setAnexo(null);
-        toast({ title: "Cobrança de honorários gerada!" });
+        setEditId(null);
+        toast({ title: honorariosEditId ? "Honorários atualizado!" : "Cobrança de honorários gerada!" });
       },
     });
   };
@@ -531,9 +689,15 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                   </TabsList>
                 </Tabs>
 
-                <Button onClick={openHonorarios} className="bg-gradient-to-r from-primary to-indigo-600 gap-1.5 shrink-0 h-9 text-sm">
-                  <Sparkles className="w-4 h-4" /> Gerar Honorários
-                </Button>
+                {tab === "receber" ? (
+                  <Button onClick={openHonorarios} className="bg-gradient-to-r from-primary to-indigo-600 gap-1.5 shrink-0 h-9 text-sm">
+                    <Sparkles className="w-4 h-4" /> Gerar Honorários
+                  </Button>
+                ) : (
+                  <Button onClick={openContaPagar} className="bg-gradient-to-r from-red-600 to-rose-600 gap-1.5 shrink-0 h-9 text-sm">
+                    <Plus className="w-4 h-4" /> Nova Conta
+                  </Button>
+                )}
               </div>
             </div>
 
@@ -684,9 +848,9 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                               {c.status === "pendente" && (
                                 <Button
                                   variant="ghost" size="icon"
-                                  onClick={() => save.mutate({ ...c, status: "pago", dataPagamento: new Date().toLocaleDateString("pt-BR") })}
+                                  onClick={() => openPagar(c)}
                                   className="h-7 w-7 text-green-400 hover:bg-green-500/10"
-                                  title="Marcar como pago"
+                                  title="Registrar Pagamento"
                                 >
                                   <CheckCircle2 className="w-3.5 h-3.5" />
                                 </Button>
@@ -744,7 +908,7 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                         <div className="flex items-center gap-1 mt-3 pt-3 border-t border-border/20 opacity-0 group-hover:opacity-100 transition-opacity">
                           {c.status === "pendente" && (
                             <Button variant="ghost" size="sm" className="h-7 text-xs text-green-400 hover:bg-green-500/10 gap-1"
-                              onClick={() => save.mutate({ ...c, status: "pago", dataPagamento: new Date().toLocaleDateString("pt-BR") })}>
+                              onClick={() => openPagar(c)}>
                               <CheckCircle2 className="w-3 h-3" /> Pagar
                             </Button>
                           )}
@@ -792,10 +956,10 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                 <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
                   <Receipt className="w-5 h-5 text-white" />
                 </div>
-                Cobrança de Honorários
+                {honorariosEditId ? "Editar Honorários" : "Cobrança de Honorários"}
               </DialogTitle>
               <DialogDescription className="text-white/70 text-sm mt-1">
-                Gere cobranças profissionais para seus clientes
+                {honorariosEditId ? "Edite os dados da cobrança" : "Gere cobranças profissionais para seus clientes"}
               </DialogDescription>
             </DialogHeader>
           </div>
@@ -1111,199 +1275,269 @@ ${honorariosForm.observacoes ? `<div class="section"><h2>Observações</h2><p st
                 className="gap-2 px-6 shadow-lg text-white bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500"
               >
                 {save.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                <Sparkles className="w-4 h-4" />
-                Gerar Cobrança
+                {honorariosEditId ? <CheckCircle2 className="w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
+                {honorariosEditId ? "Salvar Alterações" : "Gerar Cobrança"}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={contaPagarOpen} onOpenChange={setContaPagarOpen}>
         <DialogContent className="max-w-2xl p-0 bg-card border-border/50 max-h-[92vh] overflow-hidden rounded-xl">
-          <div className={`relative px-6 pt-5 pb-4 ${form.tipo === "receber" ? "bg-gradient-to-r from-green-600/80 via-emerald-600/70 to-teal-600/60" : "bg-gradient-to-r from-red-600/80 via-rose-600/70 to-pink-600/60"}`}>
+          <div className="relative px-6 pt-5 pb-4 bg-gradient-to-r from-red-600/80 via-rose-600/70 to-pink-600/60">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-3 text-white text-lg font-semibold">
                 <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <Receipt className="w-5 h-5 text-white" />
+                  <TrendingDown className="w-5 h-5 text-white" />
                 </div>
-                Editar Fatura
+                {contaPagarEditId ? "Editar Conta a Pagar" : "Nova Conta a Pagar"}
               </DialogTitle>
               <DialogDescription className="text-white/70 text-sm mt-1">
-                {form.tipo === "receber" ? "Conta a receber" : "Conta a pagar"} — edite os dados abaixo
+                {contaPagarEditId ? "Edite os dados da conta" : "Cadastre uma nova conta a pagar"}
+                <span className="float-right text-white/50 text-xs">
+                  {[contaPagarForm.fornecedor, contaPagarForm.valor, contaPagarForm.categoria, contaPagarForm.dataVencimento].filter(Boolean).length}/4 campos
+                </span>
               </DialogDescription>
             </DialogHeader>
           </div>
 
-          <div className="flex border-b border-border/40 bg-muted/30">
-            {([
-              { key: "dados", label: "Dados da Fatura", icon: FileText },
-              { key: "pagamento", label: "Pagamento", icon: CreditCard },
-              { key: "obs", label: "Observações", icon: Receipt },
-            ] as { key: typeof formTab; label: string; icon: any }[]).map(t => (
-              <button
-                key={t.key}
-                onClick={() => setFormTab(t.key)}
-                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all border-b-2 ${
-                  formTab === t.key
-                    ? "border-primary text-primary bg-primary/5"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <t.icon className="w-4 h-4" />
-                {t.label}
-              </button>
-            ))}
-          </div>
+          <div className="px-6 py-5 overflow-y-auto max-h-[calc(92vh-200px)] space-y-5">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                <Store className="w-3.5 h-3.5 inline mr-1.5" />
+                Nome do fornecedor ou empresa <span className="text-red-400">*</span>
+              </Label>
+              <Input
+                value={contaPagarForm.fornecedor}
+                onChange={e => setContaPagarForm(p => ({ ...p, fornecedor: e.target.value }))}
+                className="bg-background h-10"
+                placeholder="Nome do fornecedor ou empresa"
+              />
+            </div>
 
-          <div className="px-6 py-5 overflow-y-auto max-h-[calc(92vh-250px)] space-y-5">
-            {formTab === "dados" && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Tipo</Label>
-                    <Select value={form.tipo} onValueChange={v => setForm(p => ({...p, tipo: v}))}>
-                      <SelectTrigger className="bg-background h-10"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="receber">A Receber</SelectItem>
-                        <SelectItem value="pagar">A Pagar</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Status</Label>
-                    <Select value={form.status} onValueChange={v => setForm(p => ({...p, status: v}))}>
-                      <SelectTrigger className="bg-background h-10"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(STATUS_MAP).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>
-                            <span className="flex items-center gap-2">
-                              <span className={`w-2 h-2 rounded-full ${v.dotColor}`} />
-                              {v.label}
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs text-muted-foreground uppercase tracking-wider">Descrição <span className="text-red-400">*</span></Label>
-                  <Input value={form.descricao||""} onChange={e=>setForm(p=>({...p,descricao:e.target.value}))} className="bg-background h-10" placeholder="Ex: Honorários contábeis - Janeiro/2026" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Valor</Label>
-                    <Input value={form.valor||""} onChange={e=>setForm(p=>({...p,valor:formatters.currency(e.target.value)}))} className="bg-background h-10 font-mono" placeholder="R$ 0,00" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Categoria</Label>
-                    <Select value={form.categoria || "__none__"} onValueChange={v => setForm(p => ({...p, categoria: v === "__none__" ? "" : v}))}>
-                      <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">— Selecione —</SelectItem>
-                        {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Cliente</Label>
-                    <Select
-                      value={form.clienteId ? String(form.clienteId) : "__none__"}
-                      onValueChange={v => setForm(p => ({...p, clienteId: v === "__none__" ? undefined : parseInt(v)}))}
-                    >
-                      <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">— Nenhum —</SelectItem>
-                        {clientes.map(c => (
-                          <SelectItem key={c.id} value={String(c.id)}>
-                            {c.razaoSocial || c.nomeFantasia || `#${c.id}`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Competência</Label>
-                    <Input
-                      value={form.competencia||""}
-                      onChange={e=>setForm(p=>({...p,competencia:formatters.competencia(e.target.value)}))}
-                      className="bg-background h-10 font-mono"
-                      placeholder="MM/AAAA"
-                      maxLength={7}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Nº Documento</Label>
-                    <Input value={form.numeroDocumento||""} onChange={e=>setForm(p=>({...p,numeroDocumento:e.target.value}))} className="bg-background h-10" placeholder="NF, Boleto, etc." />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Parcela</Label>
-                    <Input value={form.parcela||""} onChange={e=>setForm(p=>({...p,parcela:e.target.value}))} className="bg-background h-10" placeholder="1/3, 2/3..." />
-                  </div>
-                </div>
-              </>
-            )}
-
-            {formTab === "pagamento" && (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Data Emissão</Label>
-                    <Input value={form.dataEmissao||""} onChange={e=>setForm(p=>({...p,dataEmissao:formatters.date(e.target.value)}))} className="bg-background h-10 font-mono" placeholder="DD/MM/AAAA" maxLength={10} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Vencimento</Label>
-                    <Input value={form.dataVencimento||""} onChange={e=>setForm(p=>({...p,dataVencimento:formatters.date(e.target.value)}))} className="bg-background h-10 font-mono" placeholder="DD/MM/AAAA" maxLength={10} />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Data Pagamento</Label>
-                    <Input value={form.dataPagamento||""} onChange={e=>setForm(p=>({...p,dataPagamento:formatters.date(e.target.value)}))} className="bg-background h-10 font-mono" placeholder="DD/MM/AAAA" maxLength={10} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Forma de Pagamento</Label>
-                    <Select value={form.formaPagamento || "__none__"} onValueChange={v => setForm(p => ({...p, formaPagamento: v === "__none__" ? "" : v}))}>
-                      <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Selecione" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="__none__">— Selecione —</SelectItem>
-                        {FORMAS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </>
-            )}
-
-            {formTab === "obs" && (
+            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground uppercase tracking-wider">Observações</Label>
-                <Textarea value={form.observacoes||""} onChange={e=>setForm(p=>({...p,observacoes:e.target.value}))} className="bg-background resize-none min-h-[160px]" rows={6} placeholder="Anotações, informações complementares..." />
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  <DollarSign className="w-3.5 h-3.5 inline mr-1.5 text-green-400" />
+                  Valor <span className="text-red-400">*</span>
+                </Label>
+                <Input
+                  value={contaPagarForm.valor}
+                  onChange={e => setContaPagarForm(p => ({ ...p, valor: formatters.currency(e.target.value) }))}
+                  className="bg-background h-10 font-mono"
+                  placeholder="R$ 0,00"
+                />
               </div>
-            )}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                  <Tag className="w-3.5 h-3.5 inline mr-1.5 text-violet-400" />
+                  Categoria
+                </Label>
+                <Select
+                  value={contaPagarForm.categoria || "__none__"}
+                  onValueChange={v => setContaPagarForm(p => ({ ...p, categoria: v === "__none__" ? "" : v }))}
+                >
+                  <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Selecione...</SelectItem>
+                    {CATEGORIAS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                <Calendar className="w-3.5 h-3.5 inline mr-1.5" />
+                Data de Vencimento <span className="text-red-400">*</span>
+              </Label>
+              <Input
+                value={contaPagarForm.dataVencimento}
+                onChange={e => setContaPagarForm(p => ({ ...p, dataVencimento: formatters.date(e.target.value) }))}
+                className="bg-background h-10 font-mono"
+                placeholder="dd/mm/aaaa"
+                maxLength={10}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                <Barcode className="w-3.5 h-3.5 inline mr-1.5" />
+                Linha Digitável (Código de Barras)
+              </Label>
+              <Input
+                value={contaPagarForm.linhaDigitavel}
+                onChange={e => setContaPagarForm(p => ({ ...p, linhaDigitavel: e.target.value }))}
+                className="bg-background h-10 font-mono text-sm"
+                placeholder="Cole aqui a linha digitável do boleto"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                <QrCode className="w-3.5 h-3.5 inline mr-1.5" />
+                PIX Copia e Cola
+              </Label>
+              <Input
+                value={contaPagarForm.pixCopiaCola}
+                onChange={e => setContaPagarForm(p => ({ ...p, pixCopiaCola: e.target.value }))}
+                className="bg-background h-10 font-mono text-sm"
+                placeholder="Cole aqui o código PIX"
+              />
+            </div>
+
+            <div>
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider mb-2 block">
+                <Paperclip className="w-3.5 h-3.5 inline mr-1.5" />
+                Anexar Documento
+              </Label>
+              <input
+                ref={contaPagarFileRef}
+                type="file"
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.csv,.txt,.zip,.rar"
+                onChange={e => { const f = e.target.files?.[0]; if (f) setContaPagarAnexo(f); }}
+              />
+              {!contaPagarAnexo ? (
+                <div
+                  className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
+                    contaPagarDragOver
+                      ? "border-primary bg-primary/5"
+                      : "border-border/50 hover:border-primary/40 hover:bg-primary/5"
+                  }`}
+                  onClick={() => contaPagarFileRef.current?.click()}
+                  onDragOver={e => { e.preventDefault(); setContaPagarDragOver(true); }}
+                  onDragLeave={() => setContaPagarDragOver(false)}
+                  onDrop={e => { e.preventDefault(); setContaPagarDragOver(false); const f = e.dataTransfer.files[0]; if (f) setContaPagarAnexo(f); }}
+                >
+                  <Paperclip className="w-6 h-6 text-primary/40 mx-auto mb-2" />
+                  <p className="text-sm">
+                    <span className="text-primary font-medium">Clique para anexar um documento</span>
+                  </p>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{contaPagarAnexo.name}</p>
+                      <p className="text-xs text-muted-foreground">{(contaPagarAnexo.size / 1024).toFixed(1)} KB</p>
+                    </div>
+                  </div>
+                  <Button variant="ghost" size="icon" onClick={() => { setContaPagarAnexo(null); if (contaPagarFileRef.current) contaPagarFileRef.current.value = ""; }} className="h-8 w-8 text-red-400 hover:bg-red-500/10">
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-between px-6 py-4 bg-muted/30 border-t border-border/40">
-            <Button variant="ghost" onClick={() => setOpen(false)} className="text-muted-foreground gap-2">
-              <X className="w-4 h-4" /> Cancelar
+            <span className="text-xs text-muted-foreground">* Campos obrigatórios</span>
+            <div className="flex items-center gap-2">
+              <Button variant="ghost" onClick={() => setContaPagarOpen(false)} className="text-muted-foreground">
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleContaPagarSave}
+                disabled={save.isPending || !contaPagarForm.fornecedor.trim() || !contaPagarForm.dataVencimento}
+                className="gap-2 px-6 shadow-lg text-white bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500"
+              >
+                {save.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                <Plus className="w-4 h-4" />
+                {contaPagarEditId ? "Salvar Alterações" : "Cadastrar"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={pagarOpen} onOpenChange={setPagarOpen}>
+        <DialogContent className="max-w-md p-0 bg-card border-border/50 overflow-hidden rounded-xl">
+          <div className="relative px-6 pt-5 pb-4 bg-gradient-to-r from-green-600/80 via-emerald-600/70 to-teal-600/60">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-3 text-white text-lg font-semibold">
+                <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <CheckCircle2 className="w-5 h-5 text-white" />
+                </div>
+                Registrar Pagamento
+              </DialogTitle>
+              <DialogDescription className="text-white/70 text-sm mt-1">
+                {pagarTarget?.descricao}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+
+          <div className="px-6 py-5 space-y-5">
+            {pagarTarget && (
+              <div className="bg-muted/30 rounded-lg border border-border/30 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Valor</span>
+                  <span className="text-xl font-bold font-mono text-green-400">{pagarTarget.valor || "—"}</span>
+                </div>
+                {pagarTarget.dataVencimento && (
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-muted-foreground">Vencimento</span>
+                    <span className="text-xs font-mono text-muted-foreground">{pagarTarget.dataVencimento}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">
+                Data do Pagamento <span className="text-red-400">*</span>
+              </Label>
+              <Input
+                value={pagarForm.dataPagamento}
+                onChange={e => setPagarForm(p => ({ ...p, dataPagamento: formatters.date(e.target.value) }))}
+                className="bg-background h-10 font-mono"
+                placeholder="DD/MM/AAAA"
+                maxLength={10}
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Forma de Pagamento</Label>
+              <Select
+                value={pagarForm.formaPagamento || "__none__"}
+                onValueChange={v => setPagarForm(p => ({ ...p, formaPagamento: v === "__none__" ? "" : v }))}
+              >
+                <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">— Selecione —</SelectItem>
+                  {BANCOS_PAGAMENTO.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Observações</Label>
+              <Textarea
+                value={pagarForm.observacoes}
+                onChange={e => setPagarForm(p => ({ ...p, observacoes: e.target.value }))}
+                className="bg-background resize-none min-h-[80px]"
+                rows={3}
+                placeholder="Informações sobre o pagamento..."
+              />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between px-6 py-4 bg-muted/30 border-t border-border/40">
+            <Button variant="ghost" onClick={() => setPagarOpen(false)} className="text-muted-foreground">
+              Cancelar
             </Button>
             <Button
-              onClick={handleSave}
-              disabled={save.isPending || !form.descricao?.trim()}
-              className={`gap-2 px-6 shadow-lg text-white ${tab === "receber" ? "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 shadow-green-900/20" : "bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 shadow-red-900/20"}`}
+              onClick={handleConfirmarPagamento}
+              disabled={save.isPending || !pagarForm.dataPagamento}
+              className="gap-2 px-6 shadow-lg text-white bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500"
             >
               {save.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
               <CheckCircle2 className="w-4 h-4" />
-              {editId ? "Salvar Alterações" : "Criar Fatura"}
+              Confirmar Pagamento
             </Button>
           </div>
         </DialogContent>
