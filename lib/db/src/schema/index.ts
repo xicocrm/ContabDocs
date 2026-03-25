@@ -12,3 +12,4 @@ export * from "./campanhas";
 export * from "./consultas-fiscais";
 export * from "./portal-arquivos";
 export * from "./alvaras";
+export * from "./impostos";
