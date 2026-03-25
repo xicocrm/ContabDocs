@@ -69,4 +69,17 @@ export const API = {
     }
     return res.json();
   },
+
+  async putForm<T = unknown>(path: string, formData: FormData): Promise<T> {
+    const res = await fetch(API.url(path), {
+      method: "PUT",
+      headers: { ...authHeader() },
+      body: formData,
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      throw Object.assign(new Error((d as any).message || `Erro ${res.status}`), { status: res.status, data: d });
+    }
+    return res.json();
+  },
 };
