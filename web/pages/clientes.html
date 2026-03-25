@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cliente Registration</title>
+</head>
+<body>
+    <h1>Register New Cliente</h1>
+    <form action="/submit-cliente" method="POST">
+        <label for="nome">Nome:</label>
+        <input type="text" id="nome" name="nome" required><br><br>
+
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required><br><br>
+
+        <label for="telefone">Telefone:</label>
+        <input type="tel" id="telefone" name="telefone" required><br><br>
+
+        <label for="endereco">Endereço:</label>
+        <textarea id="endereco" name="endereco" required></textarea><br><br>
+
+        <button type="submit">Register</button>
+    </form>
+</body>
+</html>
