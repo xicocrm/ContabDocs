@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   TrendingUp, RefreshCw, CheckCircle, AlertCircle, Clock, Info,
   BarChart3, FileText, Loader2, ChevronDown, ChevronRight, BookOpen,
-  Calculator, AlertTriangle, DollarSign, Building2, Percent,
+  Calculator, AlertTriangle, DollarSign, Building2, Percent, Layers, Shield,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -133,9 +133,174 @@ function normalizeRegime(r?: string): string {
 const BASE_URL = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
 
 async function apiFetchCnpj(cnpj: string) {
-  const r = await fetch(`${BASE_URL}/api/cnpj/${cnpj}`, { headers: { "Content-Type": "application/json" } });
+  const r = await fetch(`${BASE_URL}/api/receita/cnpj/${cnpj}`, { headers: { "Content-Type": "application/json" } });
   if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.message || r.statusText); }
   return r.json();
+}
+
+// ─────────────────────────────────────────────
+// CNAE / REGIME PREVIDENCIÁRIO
+// ─────────────────────────────────────────────
+interface CnaeInfo {
+  cnaePrincipalCodigo: string;
+  cnaePrincipalDescricao: string;
+  cnaesSecundarios: Array<{ codigo: string; descricao: string }>;
+  simplesOptante: boolean | null;
+  simplesDataOpcao: string | null;
+  simplesDataExclusao: string | null;
+  meiOptante: boolean | null;
+  meiDataOpcao: string | null;
+}
+
+// CPRB — Desoneração da Folha (Lei 12.546/2011 e alterações)
+// Setores que podem optar por CPRB em vez de 20% CPP
+const CPRB_SETORES: Array<{ prefixos: number[]; label: string; aliquota: string }> = [
+  { prefixos: [6201,6202,6203,6204,6209,6311,6319,6399], label: "Tecnologia da Informação / TIC", aliquota: "4,5%" },
+  { prefixos: [8220],                                      label: "Call Center",                   aliquota: "3,0%" },
+  { prefixos: [4110,4120,4211,4212,4213,4221,4222,4223,4291,4292,4299,4311,4312,4313,4319,4321,4322,4329,4330,4391,4392,4399], label: "Construção Civil",   aliquota: "4,5%" },
+  { prefixos: [1311,1312,1313,1314,1321,1322,1323,1330,1340,1351,1352,1353,1354,1359,1411,1412,1413,1414,1421,1422],          label: "Têxtil e Vestuário", aliquota: "1,0%" },
+  { prefixos: [1521,1529,1531,1532,1533,1539,1541,1542],                                                                       label: "Calçados",           aliquota: "1,0%" },
+  { prefixos: [5911,5912,5913,5914,5919,5920],                                                                                  label: "Cinema e Áudio",     aliquota: "1,0%" },
+  { prefixos: [4711,4712,4713],                                                                                                  label: "Varejo de Alimentos","aliquota": "1,0%" },
+];
+
+function detectarCPRB(cnaeCodigo: string): { elegivel: boolean; setor: string; aliquota: string } {
+  const cod = parseInt(cnaeCodigo.replace(/\D/g, ""), 10);
+  if (!cod) return { elegivel: false, setor: "", aliquota: "" };
+  for (const setor of CPRB_SETORES) {
+    if (setor.prefixos.includes(cod)) return { elegivel: true, setor: setor.label, aliquota: setor.aliquota };
+  }
+  return { elegivel: false, setor: "", aliquota: "" };
+}
+
+function PanelCNAE({ cnaeInfo, loadingRF, onConsultar, cnpjValido }: {
+  cnaeInfo: CnaeInfo | null; loadingRF: boolean; onConsultar: () => void; cnpjValido: boolean;
+}) {
+  const cprb = cnaeInfo ? detectarCPRB(cnaeInfo.cnaePrincipalCodigo) : null;
+
+  return (
+    <div className="space-y-4">
+      {/* CNAE Principal */}
+      <SectionCollapse title="CNAE — Classificação Nacional de Atividades Econômicas" icon={<Layers className="w-4 h-4" />}>
+        <div className="space-y-3">
+          <div className="flex items-start gap-2.5 bg-secondary/20 rounded-xl border border-border/30 p-3.5">
+            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-400" />
+            <span className="text-[11px] text-muted-foreground">
+              O CNAE é obtido diretamente da Receita Federal via CNPJ. Clique em "Consultar Receita Federal" para atualizar.
+            </span>
+          </div>
+
+          {cnaeInfo ? (
+            <div className="space-y-3">
+              {/* CNAE Principal */}
+              <div className="rounded-lg border border-border/40 bg-secondary/20 p-3.5">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">CNAE Principal</p>
+                <p className="text-sm font-bold font-mono text-primary">{cnaeInfo.cnaePrincipalCodigo}</p>
+                <p className="text-sm mt-0.5">{cnaeInfo.cnaePrincipalDescricao}</p>
+              </div>
+
+              {/* CNAEs Secundários */}
+              {cnaeInfo.cnaesSecundarios.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-xs text-muted-foreground">CNAEs Secundários</p>
+                  {cnaeInfo.cnaesSecundarios.map((c, i) => (
+                    <div key={i} className="rounded-lg border border-border/30 bg-secondary/10 px-3 py-2 flex items-start gap-2">
+                      <span className="font-mono text-xs text-muted-foreground shrink-0 pt-0.5">{c.codigo}</span>
+                      <span className="text-xs">{c.descricao}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-muted-foreground">
+              <Layers className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <p className="text-sm">CNAE não carregado</p>
+              <p className="text-xs">Consulte a Receita Federal para obter o CNAE atualizado</p>
+            </div>
+          )}
+
+          <Button type="button" variant="secondary" size="sm" onClick={onConsultar} disabled={loadingRF || !cnpjValido} className="gap-2">
+            {loadingRF ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            Consultar Receita Federal
+          </Button>
+        </div>
+      </SectionCollapse>
+
+      {/* Regime Previdenciário */}
+      <SectionCollapse title="Regime Previdenciário Patronal" icon={<Shield className="w-4 h-4" />}>
+        <div className="space-y-3">
+          {/* CPP Padrão */}
+          <div className="rounded-xl border border-border/40 bg-secondary/20 p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full bg-blue-400" />
+              <p className="text-sm font-semibold text-blue-300">CPP — Contribuição Patronal Previdenciária (Regime Padrão)</p>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="bg-background/60 rounded-lg border border-border/30 p-2.5 text-center">
+                <p className="text-xs text-muted-foreground">INSS Patronal</p>
+                <p className="font-bold text-base text-blue-300">20%</p>
+                <p className="text-[10px] text-muted-foreground">sobre folha</p>
+              </div>
+              <div className="bg-background/60 rounded-lg border border-border/30 p-2.5 text-center">
+                <p className="text-xs text-muted-foreground">RAT (acidente)</p>
+                <p className="font-bold text-base text-amber-300">1%–3%</p>
+                <p className="text-[10px] text-muted-foreground">grau de risco</p>
+              </div>
+              <div className="bg-background/60 rounded-lg border border-border/30 p-2.5 text-center">
+                <p className="text-xs text-muted-foreground">Terceiros (SESI/SESC…)</p>
+                <p className="font-bold text-base text-violet-300">~5,8%</p>
+                <p className="text-[10px] text-muted-foreground">varia por setor</p>
+              </div>
+              <div className="bg-background/60 rounded-lg border border-border/30 p-2.5 text-center">
+                <p className="text-xs text-muted-foreground">Total Estimado</p>
+                <p className="font-bold text-base text-red-300">~27%</p>
+                <p className="text-[10px] text-muted-foreground">sobre a folha</p>
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground mt-2">
+              Além do INSS do empregado (7,5% a 14%), FGTS (8%) e 13º/férias proporcionais.
+            </p>
+          </div>
+
+          {/* CPRB — se elegível */}
+          {cprb?.elegivel && (
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle className="w-4 h-4 text-emerald-400" />
+                <p className="text-sm font-semibold text-emerald-300">CPRB — Desoneração da Folha (possível opção)</p>
+              </div>
+              <p className="text-xs text-muted-foreground mb-3">
+                O CNAE principal <strong>{cnaeInfo?.cnaePrincipalCodigo}</strong> pertence ao setor de <strong>{cprb.setor}</strong>,
+                que pode ser elegível à CPRB (Contribuição Previdenciária sobre Receita Bruta) em substituição ao CPP de 20%.
+              </p>
+              <div className="flex items-center gap-3">
+                <div className="bg-background/60 rounded-lg border border-emerald-500/30 px-4 py-2.5 text-center">
+                  <p className="text-xs text-muted-foreground">Alíquota CPRB</p>
+                  <p className="font-bold text-xl text-emerald-300">{cprb.aliquota}</p>
+                  <p className="text-[10px] text-muted-foreground">sobre receita bruta</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground flex-1">
+                  A CPRB substitui os 20% CPP mas mantém RAT e contribuições de terceiros.
+                  Verifique com o contador a conveniência da opção. Lei 12.546/2011 e alterações.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Regimes especiais */}
+          <div className="rounded-lg border border-border/30 bg-secondary/10 p-3">
+            <p className="text-xs font-semibold mb-2">Isenções e Regimes Especiais</p>
+            <div className="space-y-1.5 text-[11px] text-muted-foreground">
+              <p><span className="text-sky-300 font-medium">MEI:</span> Contribuição fixa DAS mensal (INSS incluso). Sem CPP adicional se sem empregado.</p>
+              <p><span className="text-emerald-300 font-medium">Simples Nacional:</span> INSS patronal incluído na guia DAS para maioria dos anexos (exceto Anexo IV).</p>
+              <p><span className="text-slate-300 font-medium">Imune/Isento:</span> Entidades sem fins lucrativos podem ter redução ou isenção (verificar cada caso).</p>
+            </div>
+          </div>
+        </div>
+      </SectionCollapse>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────
@@ -726,48 +891,67 @@ export function TabFiscal({ clienteId, cnpj, atividadePrincipal, initialData, on
     aliquotaEfetiva:   initialData.aliquotaEfetiva   || "",
   });
 
-  const [loadingSimples, setLoadingSimples] = useState(false);
+  const [loadingRF, setLoadingRF] = useState(false);
+  const [cnaeInfo, setCnaeInfo] = useState<CnaeInfo | null>(null);
   const hasAutoFetched = useRef(false);
 
   const regime = form.regimeTributario;
   const isSimples = regime === "simples_nacional";
   const isMei = regime === "mei";
-  const needsRF = isSimples || isMei;
+  const cnpjLimpo = (cnpj || "").replace(/\D/g, "");
+  const cnpjValido = cnpjLimpo.length === 14;
 
   function setField(key: keyof FiscalData, value: string) {
     setForm(f => ({ ...f, [key]: value }));
   }
 
-  // Auto-fetch Simples/MEI data on mount
+  // Auto-fetch on mount whenever CNPJ is available
   useEffect(() => {
-    if (!needsRF || hasAutoFetched.current || !cnpj || form.optanteSimples) return;
+    if (!cnpjValido || hasAutoFetched.current) return;
     hasAutoFetched.current = true;
-    consultarSimples();
-  }, [needsRF, cnpj]);
+    consultarRF();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cnpjValido]);
 
-  async function consultarSimples() {
-    const cnpjLimpo = (cnpj || "").replace(/\D/g, "");
-    if (cnpjLimpo.length !== 14) { toast({ title: "CNPJ não informado ou inválido", variant: "destructive" }); return; }
-    setLoadingSimples(true);
+  async function consultarRF() {
+    if (!cnpjValido) { toast({ title: "CNPJ não informado ou inválido", variant: "destructive" }); return; }
+    setLoadingRF(true);
     try {
       const data = await apiFetchCnpj(cnpjLimpo);
-      const optante = data.simplesOptante ?? data.meiOptante;
-      const mei = data.meiOptante;
-      if (optante !== null && optante !== undefined) {
-        const opt = isMei ? (mei ? "Sim" : "Não") : (optante ? "Sim" : "Não");
-        const dataOpcao = isMei ? (data.meiDataOpcao || data.simplesDataOpcao || "") : (data.simplesDataOpcao || "");
-        const situacao = isMei
-          ? (mei ? "Ativo" : "Não optante MEI")
-          : (optante ? "Ativo" : data.simplesDataExclusao ? "Excluído" : "Não optante");
+
+      // --- CNAE ---
+      setCnaeInfo({
+        cnaePrincipalCodigo:  String(data.cnaePrincipalCodigo || ""),
+        cnaePrincipalDescricao: String(data.cnaePrincipalDescricao || ""),
+        cnaesSecundarios: Array.isArray(data.cnaesSecundarios) ? data.cnaesSecundarios : [],
+        simplesOptante:     data.simplesOptante ?? null,
+        simplesDataOpcao:   data.simplesDataOpcao ?? null,
+        simplesDataExclusao: data.simplesDataExclusao ?? null,
+        meiOptante:         data.meiOptante ?? null,
+        meiDataOpcao:       data.meiDataOpcao ?? null,
+      });
+
+      // --- Simples / MEI ---
+      const optante = data.simplesOptante;
+      const meiOpt  = data.meiOptante;
+      if (isSimples && optante !== null && optante !== undefined) {
+        const opt = optante ? "Sim" : "Não";
+        const situacao = optante ? "Ativo" : (data.simplesDataExclusao ? "Excluído" : "Não optante");
+        const dataOpcao = String(data.simplesDataOpcao || "").split("T")[0];
         setForm(f => ({ ...f, optanteSimples: opt, situacaoSimples: situacao, dataOpcaoSimples: dataOpcao }));
-        toast({ title: "Situação atualizada da Receita Federal" });
-      } else {
-        toast({ title: "Dados do Simples não disponíveis", description: "Verifique o CNPJ cadastrado.", variant: "destructive" });
+      } else if (isMei && meiOpt !== null && meiOpt !== undefined) {
+        const opt = meiOpt ? "Sim" : "Não";
+        const situacao = meiOpt ? "Ativo" : "Não optante MEI";
+        const dataOpcao = String(data.meiDataOpcao || data.simplesDataOpcao || "").split("T")[0];
+        setForm(f => ({ ...f, optanteSimples: opt, situacaoSimples: situacao, dataOpcaoSimples: dataOpcao }));
       }
+
+      toast({ title: "Dados atualizados da Receita Federal" });
     } catch (err: any) {
       toast({ title: err.message || "Erro ao consultar Receita Federal", variant: "destructive" });
     } finally {
-      setLoadingSimples(false); }
+      setLoadingRF(false);
+    }
   }
 
   async function handleSave() {
@@ -822,12 +1006,17 @@ export function TabFiscal({ clienteId, cnpj, atividadePrincipal, initialData, on
         </CardContent>
       </Card>
 
+      {/* CNAE + Regime Previdenciário — visible for all regimes when CNPJ is set */}
+      {(cnpjValido || cnaeInfo) && (
+        <PanelCNAE cnaeInfo={cnaeInfo} loadingRF={loadingRF} onConsultar={consultarRF} cnpjValido={cnpjValido} />
+      )}
+
       {/* Regime-specific panel */}
       {regime === "simples_nacional" && (
-        <PanelSimples form={form} setField={setField} cnpj={cnpj} loadingSimples={loadingSimples} onConsultar={consultarSimples} />
+        <PanelSimples form={form} setField={setField} cnpj={cnpj} loadingSimples={loadingRF} onConsultar={consultarRF} />
       )}
       {regime === "mei" && (
-        <PanelMei form={form} setField={setField} cnpj={cnpj} loadingSimples={loadingSimples} onConsultar={consultarSimples} />
+        <PanelMei form={form} setField={setField} cnpj={cnpj} loadingSimples={loadingRF} onConsultar={consultarRF} />
       )}
       {regime === "lucro_presumido"  && <PanelLucroPresumido />}
       {regime === "lucro_real"       && <PanelLucroReal />}
