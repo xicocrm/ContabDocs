@@ -1,0 +1,22 @@
+.clientes {
+    /* Add your styles here */
+    font-family: Arial, sans-serif;
+    background-color: #f2f2f2;
+    padding: 20px;
+}
+
+.cliente-card {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    margin: 15px;
+    padding: 10px;
+    background-color: #fff;
+}
+
+.cliente-card h2 {
+    color: #333;
+}
+
+.cliente-card p {
+    color: #666;
+}
