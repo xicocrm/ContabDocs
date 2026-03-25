@@ -1,4 +1,4 @@
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 RUN npm install -g pnpm@9
 WORKDIR /app
 
@@ -8,16 +8,15 @@ COPY artifacts/api-server/package.json ./artifacts/api-server/
 COPY lib/db/package.json lib/db/tsconfig.json ./lib/db/
 COPY lib/api-zod/package.json ./lib/api-zod/
 COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
-RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
-    pnpm install --no-lockfile --ignore-scripts && \
-    npx --yes esbuild --version >/dev/null 2>&1 || true
+RUN pnpm install --no-lockfile --ignore-scripts && \
+    node node_modules/esbuild/install.js
 
 FROM deps AS builder
 COPY artifacts/api-server ./artifacts/api-server
 COPY lib ./lib
 RUN pnpm --filter @workspace/api-server run build
 
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
 COPY --from=builder /app/artifacts/api-server/dist ./artifacts/api-server/dist
