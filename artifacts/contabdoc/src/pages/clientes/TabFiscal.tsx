@@ -141,6 +141,12 @@ async function apiFetchCnpj(cnpj: string) {
 // ─────────────────────────────────────────────
 // CNAE / REGIME PREVIDENCIÁRIO
 // ─────────────────────────────────────────────
+function formatDateBR(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
 interface CnaeInfo {
   cnaePrincipalCodigo: string;
   cnaePrincipalDescricao: string;
@@ -271,8 +277,8 @@ const ANEXO_CORES: Record<string, string> = {
 };
 type CnaeTab = "simples"|"previdencia"|"iss"|"desoneracao";
 
-function PanelCNAE({ cnaeInfo, loadingRF, onConsultar, cnpjValido }: {
-  cnaeInfo: CnaeInfo | null; loadingRF: boolean; onConsultar: () => void; cnpjValido: boolean;
+function PanelCNAE({ cnaeInfo, loadingRF, onConsultar, cnpjValido, regime }: {
+  cnaeInfo: CnaeInfo | null; loadingRF: boolean; onConsultar: () => void; cnpjValido: boolean; regime?: string;
 }) {
   const [tab, setTab] = useState<CnaeTab>("simples");
   const cnae = cnaeInfo?.cnaePrincipalCodigo || "";
@@ -408,50 +414,144 @@ function PanelCNAE({ cnaeInfo, loadingRF, onConsultar, cnpjValido }: {
               </div>
             )}
 
-            {tab === "previdencia" && rat && fpas && (
+            {tab === "previdencia" && (
               <div className="space-y-3">
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground">INSS Patronal</p>
-                    <p className="font-bold text-lg text-blue-300">20%</p>
-                    <p className="text-[10px] text-muted-foreground">sobre a folha</p>
-                  </div>
-                  <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground">RAT — {rat.desc.split("–")[0].trim()}</p>
-                    <p className="font-bold text-lg text-amber-300">{rat.rat}%</p>
-                    <p className="text-[10px] text-muted-foreground">{(rat.desc.split("–")[1]||"").trim()}</p>
-                  </div>
-                  <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground">Terceiros (FPAS {fpas.fpas})</p>
-                    <p className="font-bold text-lg text-violet-300">{fpasTotal.toFixed(1)}%</p>
-                    <p className="text-[10px] text-muted-foreground">{fpas.descricao}</p>
-                  </div>
-                  <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
-                    <p className="text-[10px] text-muted-foreground">Total Estimado</p>
-                    <p className="font-bold text-lg text-red-300">~{(20+rat.rat+fpasTotal).toFixed(1)}%</p>
-                    <p className="text-[10px] text-muted-foreground">sobre a folha</p>
-                  </div>
-                </div>
-                <div className="rounded-lg border border-border/30 bg-secondary/10 p-3">
-                  <p className="text-xs font-semibold mb-2">Contribuições de Terceiros — FPAS {fpas.fpas} ({fpas.descricao})</p>
-                  <div className="space-y-1.5">
-                    {fpas.entidades.map((e,i) => (
-                      <div key={i} className="flex justify-between text-[11px]">
-                        <span className="text-muted-foreground">{e.entidade}</span>
-                        <span className="font-medium">{e.aliquota.toFixed(1)}%</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between text-xs font-semibold pt-1 border-t border-border/30">
-                      <span>Total Terceiros</span><span>{fpasTotal.toFixed(1)}%</span>
+                {/* MEI — sem CPP */}
+                {regime === "mei" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">Regime Previdenciário — MEI</span>
+                      <Badge className="text-[10px] bg-sky-500/20 text-sky-300 border border-sky-500/30">Sem CPP patronal</Badge>
+                    </div>
+                    <div className="rounded-lg border border-sky-500/30 bg-sky-500/10 p-4 space-y-2 text-[11px] text-muted-foreground">
+                      <p>• O MEI <strong>não recolhe</strong> Contribuição Patronal Previdenciária (CPP 20%).</p>
+                      <p>• O DAS mensal fixo inclui o <strong>INSS do segurado</strong> (5% sobre salário mínimo) para o próprio empreendedor.</p>
+                      <p>• Se o MEI contratar <strong>1 empregado</strong> (permitido por lei): recolhe 8% sobre o salário do empregado (CPP simplificado).</p>
+                      <p>• <strong>Sem RAT e sem contribuições de terceiros</strong> (SESI, SESC, SENAC, etc.).</p>
                     </div>
                   </div>
-                </div>
-                <div className="text-[11px] text-muted-foreground space-y-0.5">
-                  <p>• <strong>FAP</strong>: multiplica o RAT entre 0,5× e 2× conforme histórico de acidentes</p>
-                  <p>• <strong>INSS empregado</strong>: 7,5% a 14% (tabela progressiva 2024)</p>
-                  <p>• <strong>FGTS</strong>: 8% sobre o salário bruto</p>
-                  <p>• Simples Nacional Anexo IV: INSS patronal recolhido separado (GPS), não incluso no DAS</p>
-                </div>
+                )}
+                {/* Simples Nacional Anexo I / II / III / V — CPP incluso no DAS */}
+                {regime === "simples_nacional" && simplesAnexo && simplesAnexo.anexo !== "IV" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">Regime Previdenciário — Simples Nacional</span>
+                      <Badge className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">CPP incluso no DAS</Badge>
+                    </div>
+                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-2 text-[11px] text-muted-foreground">
+                      <p>• INSS patronal (CPP) está <strong>incluso na guia DAS</strong> — não há recolhimento separado de 20%.</p>
+                      <p>• RAT/FAP e contribuições de terceiros também estão <strong>inclusos no DAS</strong>.</p>
+                      <p>• <strong>Exceção: Anexo IV</strong> — as atividades deste Anexo recolhem INSS patronal separado via GPS.</p>
+                      <p>• INSS do empregado (7,5% a 14%): recolhido via FGTS e GPS normalmente.</p>
+                    </div>
+                    {rat && fpas && (
+                      <div className="rounded-lg border border-border/30 bg-secondary/10 p-3">
+                        <p className="text-xs font-semibold mb-2">FPAS de Referência — {fpas.fpas} ({fpas.descricao})</p>
+                        <div className="space-y-1.5">
+                          {fpas.entidades.map((e,i) => (
+                            <div key={i} className="flex justify-between text-[11px]">
+                              <span className="text-muted-foreground">{e.entidade}</span>
+                              <span className="font-medium text-muted-foreground/60">incluso no DAS</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Simples Nacional Anexo IV — CPP separado */}
+                {regime === "simples_nacional" && simplesAnexo && simplesAnexo.anexo === "IV" && rat && fpas && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">Regime Previdenciário — Simples Anexo IV</span>
+                      <Badge className="text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30">CPP separado (GPS)</Badge>
+                    </div>
+                    <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-[11px] text-muted-foreground mb-1">
+                      <p>Anexo IV (construção civil, engenharia, advocacia, contabilidade): o <strong>INSS patronal é recolhido separado via GPS</strong>, não está incluso no DAS.</p>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">INSS Patronal</p>
+                        <p className="font-bold text-lg text-blue-300">20%</p>
+                        <p className="text-[10px] text-muted-foreground">sobre a folha</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">RAT — {rat.desc.split("–")[0].trim()}</p>
+                        <p className="font-bold text-lg text-amber-300">{rat.rat}%</p>
+                        <p className="text-[10px] text-muted-foreground">{(rat.desc.split("–")[1]||"").trim()}</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">Total GPS</p>
+                        <p className="font-bold text-lg text-red-300">~{(20+rat.rat).toFixed(0)}%</p>
+                        <p className="text-[10px] text-muted-foreground">sem terceiros</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/30 bg-secondary/10 p-3">
+                      <p className="text-xs font-semibold mb-2">FPAS {fpas.fpas} — {fpas.descricao}</p>
+                      <div className="space-y-1.5">
+                        {fpas.entidades.map((e,i) => (
+                          <div key={i} className="flex justify-between text-[11px]">
+                            <span className="text-muted-foreground">{e.entidade}</span>
+                            <span className="font-medium">{e.aliquota.toFixed(1)}%</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-xs font-semibold pt-1 border-t border-border/30">
+                          <span>Total Terceiros</span><span>{fpasTotal.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {/* LP / LR / LA / Imune / Isento — CPP padrão completo */}
+                {(regime === "lucro_presumido" || regime === "lucro_real" || regime === "lucro_arbitrado" || regime === "imune_isento" || regime === "autonomo_pf" || (!regime?.startsWith("simples") && regime !== "mei")) && rat && fpas && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">CPP — Contribuição Patronal Previdenciária</span>
+                      <Badge className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30">Regime Padrão</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">INSS Patronal</p>
+                        <p className="font-bold text-lg text-blue-300">20%</p>
+                        <p className="text-[10px] text-muted-foreground">sobre a folha</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">RAT — {rat.desc.split("–")[0].trim()}</p>
+                        <p className="font-bold text-lg text-amber-300">{rat.rat}%</p>
+                        <p className="text-[10px] text-muted-foreground">{(rat.desc.split("–")[1]||"").trim()}</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">Terceiros (FPAS {fpas.fpas})</p>
+                        <p className="font-bold text-lg text-violet-300">{fpasTotal.toFixed(1)}%</p>
+                        <p className="text-[10px] text-muted-foreground">{fpas.descricao}</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">Total Estimado</p>
+                        <p className="font-bold text-lg text-red-300">{(20+rat.rat+fpasTotal).toFixed(1)}%</p>
+                        <p className="text-[10px] text-muted-foreground">sobre a folha</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/30 bg-secondary/10 p-3">
+                      <p className="text-xs font-semibold mb-2">Contribuições de Terceiros — FPAS {fpas.fpas} ({fpas.descricao})</p>
+                      <div className="space-y-1.5">
+                        {fpas.entidades.map((e,i) => (
+                          <div key={i} className="flex justify-between text-[11px]">
+                            <span className="text-muted-foreground">{e.entidade}</span>
+                            <span className="font-medium">{e.aliquota.toFixed(1)}%</span>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-xs font-semibold pt-1 border-t border-border/30">
+                          <span>Total Terceiros</span><span>{fpasTotal.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground space-y-0.5">
+                      <p>• <strong>FAP</strong>: multiplica o RAT entre 0,5× e 2× conforme histórico de acidentes da empresa</p>
+                      <p>• <strong>INSS do empregado</strong>: 7,5% a 14% (tabela progressiva 2024)</p>
+                      <p>• <strong>FGTS</strong>: 8% sobre o salário bruto</p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -641,7 +741,7 @@ function PanelSimples({ form, setField, cnpj, loadingSimples, onConsultar }: {
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Data da Opção</Label>
               <div className="flex items-center gap-2 h-9 px-3 rounded-md bg-secondary/50 border border-border/40 font-mono">
-                <span className="text-sm">{form.dataOpcaoSimples || "—"}</span>
+                <span className="text-sm">{formatDateBR(form.dataOpcaoSimples)}</span>
               </div>
             </div>
           </div>
@@ -660,7 +760,17 @@ function PanelSimples({ form, setField, cnpj, loadingSimples, onConsultar }: {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs">Faturamento Anual — RBT12</Label>
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Faturamento Anual — RBT12</Label>
+                <a
+                  href="https://www8.receita.fazenda.gov.br/SimplesNacional/Aplicacoes/ATSPO/pgdas.app/"
+                  target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 text-[10px] text-blue-400 hover:underline"
+                  title="Acessar PGDAS-D na Receita Federal"
+                >
+                  <Info className="w-3 h-3" /> Consultar na RF (PGDAS-D)
+                </a>
+              </div>
               <Input
                 value={form.faturamentoAnual}
                 onChange={e => setField("faturamentoAnual", maskBRL(e.target.value))}
@@ -668,7 +778,7 @@ function PanelSimples({ form, setField, cnpj, loadingSimples, onConsultar }: {
                 placeholder="R$ 0,00"
                 inputMode="numeric"
               />
-              <p className="text-[10px] text-muted-foreground">Receita bruta total dos últimos 12 meses</p>
+              <p className="text-[10px] text-muted-foreground">Receita bruta total dos últimos 12 meses — informe conforme PGDAS-D ou e-CAC</p>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Anexo do Simples Nacional</Label>
@@ -809,7 +919,7 @@ function PanelMei({ form, setField, cnpj, loadingSimples, onConsultar }: {
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Data da Opção</Label>
               <div className="flex items-center h-9 px-3 rounded-md bg-secondary/50 border border-border/40 font-mono">
-                <span className="text-sm">{form.dataOpcaoSimples || "—"}</span>
+                <span className="text-sm">{formatDateBR(form.dataOpcaoSimples)}</span>
               </div>
             </div>
           </div>
@@ -1246,7 +1356,7 @@ export function TabFiscal({ clienteId, cnpj, atividadePrincipal, initialData, on
 
       {/* CNAE + Regime Previdenciário — visible for all regimes when CNPJ is set */}
       {(cnpjValido || cnaeInfo) && (
-        <PanelCNAE cnaeInfo={cnaeInfo} loadingRF={loadingRF} onConsultar={consultarRF} cnpjValido={cnpjValido} />
+        <PanelCNAE cnaeInfo={cnaeInfo} loadingRF={loadingRF} onConsultar={consultarRF} cnpjValido={cnpjValido} regime={regime} />
       )}
 
       {/* Regime-specific panel */}
