@@ -16,8 +16,9 @@ import { SemEscritorio } from "@/components/SemEscritorio";
 import {
   Loader2, Plus, Edit, Trash2, Search, CheckSquare, Square,
   Clock, CheckCircle2, AlertCircle, XCircle, RefreshCw,
-  CalendarDays, User, Flag, Tag, Repeat, ChevronDown, Filter,
-  AlertTriangle, CheckCheck
+  CalendarDays, User, Flag, Tag, Repeat, Building2,
+  AlertTriangle, CheckCheck, FileText, Hash, Briefcase,
+  Calendar, LayoutList, X
 } from "lucide-react";
 
 interface Tarefa {
@@ -29,10 +30,15 @@ interface Tarefa {
   tipo?: string;
   prioridade: string;
   status: string;
+  competencia?: string;
+  departamento?: string;
+  dataInicio?: string;
   dataVencimento?: string;
   dataConclusao?: string;
   responsavel?: string;
   recorrencia?: string;
+  qtdRecorrencias?: number;
+  tags?: string;
   observacoes?: string;
   createdAt?: string;
   updatedAt?: string;
@@ -46,30 +52,38 @@ interface Cliente {
   cpf?: string;
 }
 
-const STATUS_MAP: Record<string, { label: string; color: string; icon: any }> = {
-  pendente:     { label: "Pendente",     color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",  icon: Clock },
-  em_andamento: { label: "Em Andamento", color: "bg-blue-500/20 text-blue-400 border-blue-500/30",        icon: RefreshCw },
-  aguardando:   { label: "Aguardando",   color: "bg-purple-500/20 text-purple-400 border-purple-500/30",  icon: AlertCircle },
-  concluida:    { label: "Concluída",    color: "bg-green-500/20 text-green-400 border-green-500/30",     icon: CheckCircle2 },
-  cancelada:    { label: "Cancelada",    color: "bg-red-500/20 text-red-400 border-red-500/30",           icon: XCircle },
+const STATUS_MAP: Record<string, { label: string; color: string; icon: any; dotColor: string }> = {
+  pendente:     { label: "Pendente",     color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",  icon: Clock,         dotColor: "bg-yellow-400" },
+  em_andamento: { label: "Em Andamento", color: "bg-blue-500/20 text-blue-400 border-blue-500/30",        icon: RefreshCw,     dotColor: "bg-blue-400" },
+  aguardando:   { label: "Aguardando",   color: "bg-purple-500/20 text-purple-400 border-purple-500/30",  icon: AlertCircle,   dotColor: "bg-purple-400" },
+  concluida:    { label: "Concluída",    color: "bg-green-500/20 text-green-400 border-green-500/30",     icon: CheckCircle2,  dotColor: "bg-green-400" },
+  cancelada:    { label: "Cancelada",    color: "bg-red-500/20 text-red-400 border-red-500/30",           icon: XCircle,       dotColor: "bg-red-400" },
 };
 
-const PRIORIDADE_MAP: Record<string, { label: string; color: string }> = {
-  urgente: { label: "Urgente", color: "bg-red-500/20 text-red-400 border-red-500/30" },
-  alta:    { label: "Alta",    color: "bg-orange-500/20 text-orange-400 border-orange-500/30" },
-  media:   { label: "Média",   color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" },
-  baixa:   { label: "Baixa",   color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
+const PRIORIDADE_MAP: Record<string, { label: string; color: string; dotColor: string }> = {
+  urgente: { label: "Urgente", color: "bg-red-500/20 text-red-400 border-red-500/30",         dotColor: "bg-red-400" },
+  alta:    { label: "Alta",    color: "bg-orange-500/20 text-orange-400 border-orange-500/30", dotColor: "bg-orange-400" },
+  media:   { label: "Média",   color: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30", dotColor: "bg-yellow-400" },
+  baixa:   { label: "Baixa",   color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", dotColor: "bg-emerald-400" },
 };
 
 const TIPOS = [
   "Contabilidade", "Fiscal", "Pessoal", "Trabalhista",
   "Departamento Pessoal", "Societário", "Financeiro", "Jurídico",
-  "eSocial", "SPED", "DCTF", "GFIP / SEFIP", "REINF",
-  "Certidão Negativa", "Outro",
+  "eSocial", "SPED", "DCTF", "GFIP / SEFIP", "REINF", "ECD", "ECF",
+  "DIRF", "RAIS", "CAGED", "DEFIS", "DASN-SIMEI",
+  "Certidão Negativa", "Alvará", "Licença", "Outro",
+];
+
+const DEPARTAMENTOS = [
+  "Contábil", "Fiscal / Tributário", "Pessoal / RH", "Societário / Legalização",
+  "Financeiro", "Administrativo", "Consultoria", "BPO",
 ];
 
 const RECORRENCIAS = [
   { value: "unica",      label: "Única (sem repetição)" },
+  { value: "semanal",    label: "Semanal" },
+  { value: "quinzenal",  label: "Quinzenal" },
   { value: "mensal",     label: "Mensal" },
   { value: "bimestral",  label: "Bimestral" },
   { value: "trimestral", label: "Trimestral" },
@@ -79,8 +93,9 @@ const RECORRENCIAS = [
 
 const EMPTY: Partial<Tarefa> = {
   titulo: "", descricao: "", tipo: "", prioridade: "media",
-  status: "pendente", dataVencimento: "", responsavel: "",
-  recorrencia: "unica", observacoes: "",
+  status: "pendente", competencia: "", departamento: "",
+  dataInicio: "", dataVencimento: "", responsavel: "",
+  recorrencia: "unica", qtdRecorrencias: 1, tags: "", observacoes: "",
 };
 
 function isAtrasada(t: Tarefa): boolean {
@@ -96,6 +111,20 @@ function formatDate(d?: string): string {
   return `${day}/${m}/${y}`;
 }
 
+function getCompetenciaOptions(): string[] {
+  const opts: string[] = [];
+  const now = new Date();
+  for (let i = -3; i <= 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const y = d.getFullYear();
+    opts.push(`${m}/${y}`);
+  }
+  return opts;
+}
+
+type FormTab = "dados" | "descricao" | "recorrencia";
+
 export default function TarefasPage() {
   const { escritorioId } = useEscritorio();
   const { toast } = useToast();
@@ -109,6 +138,7 @@ export default function TarefasPage() {
   const [open, setOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState<Partial<Tarefa>>(EMPTY);
+  const [formTab, setFormTab] = useState<FormTab>("dados");
 
   const { data: tarefas = [], isLoading } = useQuery<Tarefa[]>({
     queryKey: ["tarefas", escritorioId],
@@ -157,6 +187,7 @@ export default function TarefasPage() {
   const openNew = () => {
     setEditId(null);
     setForm(EMPTY);
+    setFormTab("dados");
     setOpen(true);
   };
 
@@ -165,18 +196,28 @@ export default function TarefasPage() {
     setForm({
       titulo: t.titulo, descricao: t.descricao || "", tipo: t.tipo || "",
       prioridade: t.prioridade, status: t.status,
+      competencia: t.competencia || "", departamento: t.departamento || "",
+      dataInicio: t.dataInicio || "",
       dataVencimento: t.dataVencimento || "", dataConclusao: t.dataConclusao || "",
       responsavel: t.responsavel || "", recorrencia: t.recorrencia || "unica",
-      observacoes: t.observacoes || "", clienteId: t.clienteId,
+      qtdRecorrencias: t.qtdRecorrencias || 1,
+      tags: t.tags || "", observacoes: t.observacoes || "", clienteId: t.clienteId,
     });
+    setFormTab("dados");
     setOpen(true);
   };
 
   const handleSave = () => {
     if (!form.titulo?.trim()) {
-      toast({ title: "Informe o título da tarefa", variant: "destructive" }); return;
+      toast({ title: "Informe o título da tarefa", variant: "destructive" });
+      setFormTab("dados");
+      return;
     }
-    saveMut.mutate(form);
+    const payload = { ...form };
+    if (payload.tipo === "__none__" || payload.tipo === "") delete payload.tipo;
+    if (payload.departamento === "__none__" || payload.departamento === "") delete payload.departamento;
+    if (payload.competencia === "__none__" || payload.competencia === "") delete payload.competencia;
+    saveMut.mutate(payload);
   };
 
   const filtered = useMemo(() => {
@@ -190,7 +231,7 @@ export default function TarefasPage() {
         const q = search.toLowerCase();
         const clienteNome = clientes.find(c => c.id === t.clienteId);
         const cn = (clienteNome?.razaoSocial || clienteNome?.nomeFantasia || "").toLowerCase();
-        if (!t.titulo.toLowerCase().includes(q) && !cn.includes(q) && !(t.tipo || "").toLowerCase().includes(q) && !(t.responsavel || "").toLowerCase().includes(q)) return false;
+        if (!t.titulo.toLowerCase().includes(q) && !cn.includes(q) && !(t.tipo || "").toLowerCase().includes(q) && !(t.responsavel || "").toLowerCase().includes(q) && !(t.tags || "").toLowerCase().includes(q)) return false;
       }
       return true;
     });
@@ -210,13 +251,22 @@ export default function TarefasPage() {
     return c ? (c.razaoSocial || c.nomeFantasia || `#${id}`) : `#${id}`;
   };
 
+  const recorrenciaResumo = useMemo(() => {
+    const rec = form.recorrencia || "unica";
+    if (rec === "unica") return null;
+    const q = form.qtdRecorrencias || 1;
+    const label = RECORRENCIAS.find(r => r.value === rec)?.label?.split(" ")[0] || rec;
+    return `Será criada ${q} tarefa(s) com recorrência ${label.toLowerCase()}`;
+  }, [form.recorrencia, form.qtdRecorrencias]);
+
   if (!escritorioId) return <SemEscritorio />;
+
+  const competenciaOptions = getCompetenciaOptions();
 
   return (
     <AppLayout title="Tarefas" icon={<CheckSquare className="w-5 h-5" />}>
       <div className="space-y-6">
 
-        {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             { label: "Total",       value: stats.total,     color: "text-white",         icon: CheckSquare,  filter: "todos" },
@@ -241,7 +291,6 @@ export default function TarefasPage() {
           ))}
         </div>
 
-        {/* Toolbar */}
         <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div className="flex flex-wrap gap-2 flex-1">
             <div className="relative">
@@ -305,7 +354,6 @@ export default function TarefasPage() {
           </Button>
         </div>
 
-        {/* Table */}
         <Card className="bg-card border-border/40">
           <CardContent className="p-0">
             {isLoading ? (
@@ -367,6 +415,9 @@ export default function TarefasPage() {
                             <p className={`font-medium truncate ${concluida ? "line-through text-muted-foreground" : "text-foreground"}`}>
                               {t.titulo}
                             </p>
+                            {t.competencia && (
+                              <span className="text-[10px] text-primary/70 font-mono mr-2">Comp. {t.competencia}</span>
+                            )}
                             {t.descricao && (
                               <p className="text-[11px] text-muted-foreground truncate mt-0.5">{t.descricao}</p>
                             )}
@@ -435,163 +486,336 @@ export default function TarefasPage() {
         </p>
       </div>
 
-      {/* Dialog */}
+      {/* ─── Dialog Profissional ──────────────────────────────────────────── */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl bg-card border-border/50 max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckSquare className="w-5 h-5 text-primary" />
-              {editId ? "Editar Tarefa" : "Nova Tarefa"}
-            </DialogTitle>
-            <DialogDescription className="sr-only">
-              {editId ? "Editar dados da tarefa" : "Preencha os dados para criar uma nova tarefa"}
-            </DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-3xl p-0 bg-card border-border/50 max-h-[92vh] overflow-hidden rounded-xl">
+          {/* Header com gradiente */}
+          <div className="relative bg-gradient-to-r from-primary/90 via-indigo-600/80 to-violet-600/70 px-6 pt-5 pb-4">
+            <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmYiIGZpbGwtb3BhY2l0eT0iLjA1Ij48cGF0aCBkPSJNMzYgMzRoLTJ2LTRoMnYyaDR2Mmgtd3ptMC04aDJ2Mmgtdnptbi0xNmgydjJoLTJ6bTggOGgydjJoLTJ6Ii8+PC9nPjwvZz48L3N2Zz4=')] opacity-30" />
+            <DialogHeader className="relative z-10">
+              <DialogTitle className="flex items-center gap-3 text-white text-lg font-semibold">
+                <div className="w-9 h-9 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
+                  <CheckSquare className="w-5 h-5 text-white" />
+                </div>
+                {editId ? "Editar Tarefa" : "Criar Nova Tarefa"}
+              </DialogTitle>
+              <DialogDescription className="text-white/70 text-sm mt-1">
+                {editId ? "Atualize as informações da tarefa abaixo" : "Preencha os dados para criar uma nova obrigação ou tarefa contábil"}
+              </DialogDescription>
+            </DialogHeader>
+          </div>
 
-          <div className="space-y-4 pt-2">
-            {/* Título */}
-            <div className="space-y-1.5">
-              <Label>Título <span className="text-red-400">*</span></Label>
-              <Input
-                value={form.titulo || ""}
-                onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
-                placeholder="Ex: Entregar DAS de Janeiro"
-                className="bg-background"
-              />
-            </div>
+          {/* Tabs */}
+          <div className="flex border-b border-border/40 bg-muted/30">
+            {([
+              { key: "dados", label: "Dados Principais", icon: LayoutList },
+              { key: "descricao", label: "Descrição / Observações", icon: FileText },
+              { key: "recorrencia", label: "Repetir", icon: Repeat },
+            ] as { key: FormTab; label: string; icon: any }[]).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setFormTab(tab.key)}
+                className={`flex items-center gap-2 px-5 py-3 text-sm font-medium transition-all border-b-2 ${
+                  formTab === tab.key
+                    ? "border-primary text-primary bg-primary/5"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:bg-white/3"
+                }`}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
 
-            {/* Tipo + Prioridade */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" /> Tipo</Label>
-                <Select value={form.tipo || "__none__"} onValueChange={v => setForm(f => ({ ...f, tipo: v === "__none__" ? "" : v }))}>
-                  <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">— Sem tipo —</SelectItem>
-                    {TIPOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5"><Flag className="w-3.5 h-3.5" /> Prioridade</Label>
-                <Select value={form.prioridade || "media"} onValueChange={v => setForm(f => ({ ...f, prioridade: v }))}>
-                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PRIORIDADE_MAP).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+          {/* Form Content */}
+          <div className="px-6 py-5 overflow-y-auto max-h-[calc(92vh-240px)]">
+            {formTab === "dados" && (
+              <div className="space-y-5">
+                {/* Título - campo principal */}
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium flex items-center gap-1.5">
+                    Nome da Tarefa <span className="text-red-400">*</span>
+                  </Label>
+                  <Input
+                    value={form.titulo || ""}
+                    onChange={e => setForm(f => ({ ...f, titulo: e.target.value }))}
+                    placeholder="Ex: Entregar DCTF referência 01/2026"
+                    className="bg-background h-11 text-base"
+                  />
+                </div>
 
-            {/* Status + Recorrência */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Status</Label>
-                <Select value={form.status || "pendente"} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
-                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(STATUS_MAP).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5"><Repeat className="w-3.5 h-3.5" /> Recorrência</Label>
-                <Select value={form.recorrencia || "unica"} onValueChange={v => setForm(f => ({ ...f, recorrencia: v }))}>
-                  <SelectTrigger className="bg-background"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {RECORRENCIAS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                {/* Row 1: Tipo + Departamento */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Tag className="w-3 h-3" /> Tipo / Obrigação
+                    </Label>
+                    <Select value={form.tipo || "__none__"} onValueChange={v => setForm(f => ({ ...f, tipo: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Selecione o tipo —</SelectItem>
+                        {TIPOS.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Briefcase className="w-3 h-3" /> Departamento
+                    </Label>
+                    <Select value={form.departamento || "__none__"} onValueChange={v => setForm(f => ({ ...f, departamento: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Selecione o departamento" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Selecione —</SelectItem>
+                        {DEPARTAMENTOS.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-            {/* Cliente + Responsável */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Cliente</Label>
-                <Select
-                  value={form.clienteId ? String(form.clienteId) : "__none__"}
-                  onValueChange={v => setForm(f => ({ ...f, clienteId: v === "__none__" ? undefined : parseInt(v) }))}
-                >
-                  <SelectTrigger className="bg-background"><SelectValue placeholder="Nenhum" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">— Nenhum —</SelectItem>
-                    {clientes.map(c => (
-                      <SelectItem key={c.id} value={String(c.id)}>
-                        {c.razaoSocial || c.nomeFantasia || `#${c.id}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Responsável</Label>
-                <Input
-                  value={form.responsavel || ""}
-                  onChange={e => setForm(f => ({ ...f, responsavel: e.target.value }))}
-                  placeholder="Nome do responsável"
-                  className="bg-background"
-                />
-              </div>
-            </div>
+                {/* Row 2: Prioridade + Status */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Flag className="w-3 h-3" /> Prioridade
+                    </Label>
+                    <Select value={form.prioridade || "media"} onValueChange={v => setForm(f => ({ ...f, prioridade: v }))}>
+                      <SelectTrigger className="bg-background h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(PRIORIDADE_MAP).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>
+                            <span className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${v.dotColor}`} />
+                              {v.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider">Status</Label>
+                    <Select value={form.status || "pendente"} onValueChange={v => setForm(f => ({ ...f, status: v }))}>
+                      <SelectTrigger className="bg-background h-10"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(STATUS_MAP).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>
+                            <span className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${v.dotColor}`} />
+                              {v.label}
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
-            {/* Datas */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5"><CalendarDays className="w-3.5 h-3.5" /> Data de Vencimento</Label>
-                <Input
-                  type="date"
-                  value={form.dataVencimento || ""}
-                  onChange={e => setForm(f => ({ ...f, dataVencimento: e.target.value }))}
-                  className="bg-background"
-                />
+                <div className="h-px bg-border/30" />
+
+                {/* Row 3: Cliente + Responsável */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Building2 className="w-3 h-3" /> Cliente
+                    </Label>
+                    <Select
+                      value={form.clienteId ? String(form.clienteId) : "__none__"}
+                      onValueChange={v => setForm(f => ({ ...f, clienteId: v === "__none__" ? undefined : parseInt(v) }))}
+                    >
+                      <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Nenhum" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Nenhum cliente —</SelectItem>
+                        {clientes.map(c => (
+                          <SelectItem key={c.id} value={String(c.id)}>
+                            {c.razaoSocial || c.nomeFantasia || `#${c.id}`}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <User className="w-3 h-3" /> Responsável
+                    </Label>
+                    <Input
+                      value={form.responsavel || ""}
+                      onChange={e => setForm(f => ({ ...f, responsavel: e.target.value }))}
+                      placeholder="Nome do responsável"
+                      className="bg-background h-10"
+                    />
+                  </div>
+                </div>
+
+                {/* Row 4: Competência + Tags */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar className="w-3 h-3" /> Competência
+                    </Label>
+                    <Select value={form.competencia || "__none__"} onValueChange={v => setForm(f => ({ ...f, competencia: v === "__none__" ? "" : v }))}>
+                      <SelectTrigger className="bg-background h-10"><SelectValue placeholder="Mês/Ano ref." /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">— Sem competência —</SelectItem>
+                        {competenciaOptions.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Hash className="w-3 h-3" /> Tags / Etiquetas
+                    </Label>
+                    <Input
+                      value={form.tags || ""}
+                      onChange={e => setForm(f => ({ ...f, tags: e.target.value }))}
+                      placeholder="Ex: urgente, IRPF, folha"
+                      className="bg-background h-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="h-px bg-border/30" />
+
+                {/* Row 5: Datas */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <CalendarDays className="w-3 h-3" /> Data Início
+                    </Label>
+                    <Input
+                      type="date"
+                      value={form.dataInicio || ""}
+                      onChange={e => setForm(f => ({ ...f, dataInicio: e.target.value }))}
+                      className="bg-background h-10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <CalendarDays className="w-3 h-3" /> Data de Entrega
+                    </Label>
+                    <Input
+                      type="date"
+                      value={form.dataVencimento || ""}
+                      onChange={e => setForm(f => ({ ...f, dataVencimento: e.target.value }))}
+                      className="bg-background h-10"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3 h-3" /> Data Conclusão
+                    </Label>
+                    <Input
+                      type="date"
+                      value={form.dataConclusao || ""}
+                      onChange={e => setForm(f => ({ ...f, dataConclusao: e.target.value }))}
+                      className="bg-background h-10"
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Data de Conclusão</Label>
-                <Input
-                  type="date"
-                  value={form.dataConclusao || ""}
-                  onChange={e => setForm(f => ({ ...f, dataConclusao: e.target.value }))}
-                  className="bg-background"
-                />
+            )}
+
+            {formTab === "descricao" && (
+              <div className="space-y-5">
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium flex items-center gap-1.5">
+                    <FileText className="w-4 h-4 text-primary" /> Descrição da Tarefa
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Detalhe a obrigação, procedimentos e referências necessárias</p>
+                  <Textarea
+                    value={form.descricao || ""}
+                    onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
+                    placeholder="Digite uma breve descrição para a tarefa aqui..."
+                    className="bg-background resize-none min-h-[140px] text-sm leading-relaxed"
+                    rows={6}
+                  />
+                </div>
+
+                <div className="h-px bg-border/30" />
+
+                <div className="space-y-1.5">
+                  <Label className="text-sm font-medium flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-yellow-400" /> Observações Internas
+                  </Label>
+                  <p className="text-xs text-muted-foreground">Anotações internas, alertas ou informações complementares</p>
+                  <Textarea
+                    value={form.observacoes || ""}
+                    onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
+                    placeholder="Informações adicionais, alertas, pendências..."
+                    className="bg-background resize-none min-h-[100px] text-sm leading-relaxed"
+                    rows={4}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Descrição */}
-            <div className="space-y-1.5">
-              <Label>Descrição</Label>
-              <Textarea
-                value={form.descricao || ""}
-                onChange={e => setForm(f => ({ ...f, descricao: e.target.value }))}
-                placeholder="Detalhes da tarefa..."
-                className="bg-background resize-none"
-                rows={2}
-              />
-            </div>
+            {formTab === "recorrencia" && (
+              <div className="space-y-5">
+                <div className="rounded-xl border border-border/40 bg-muted/20 p-5 space-y-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <Repeat className="w-5 h-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold">Repetição da Tarefa</h3>
+                      <p className="text-xs text-muted-foreground">Configure se esta tarefa deve se repetir automaticamente</p>
+                    </div>
+                  </div>
 
-            {/* Observações */}
-            <div className="space-y-1.5">
-              <Label>Observações</Label>
-              <Textarea
-                value={form.observacoes || ""}
-                onChange={e => setForm(f => ({ ...f, observacoes: e.target.value }))}
-                placeholder="Informações adicionais..."
-                className="bg-background resize-none"
-                rows={2}
-              />
-            </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Frequência</Label>
+                      <Select value={form.recorrencia || "unica"} onValueChange={v => setForm(f => ({ ...f, recorrencia: v }))}>
+                        <SelectTrigger className="bg-background h-10"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {RECORRENCIAS.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground uppercase tracking-wider">Quantidade de Repetições</Label>
+                      <Input
+                        type="number" min={1} max={99}
+                        value={form.qtdRecorrencias || 1}
+                        onChange={e => setForm(f => ({ ...f, qtdRecorrencias: parseInt(e.target.value) || 1 }))}
+                        className="bg-background h-10"
+                        disabled={!form.recorrencia || form.recorrencia === "unica"}
+                      />
+                    </div>
+                  </div>
 
-            <div className="flex justify-end gap-3 pt-2">
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-              <Button onClick={handleSave} disabled={saveMut.isPending} className="bg-gradient-to-r from-primary to-indigo-600 gap-2">
-                {saveMut.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editId ? "Salvar Alterações" : "Criar Tarefa"}
-              </Button>
-            </div>
+                  {recorrenciaResumo && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                      <CalendarDays className="w-4 h-4 text-primary shrink-0" />
+                      <span className="text-sm text-primary">{recorrenciaResumo}</span>
+                    </div>
+                  )}
+                </div>
+
+                {(!form.recorrencia || form.recorrencia === "unica") && (
+                  <div className="text-center py-6 text-muted-foreground">
+                    <Repeat className="w-10 h-10 mx-auto mb-3 opacity-20" />
+                    <p className="text-sm">Nenhuma repetição configurada</p>
+                    <p className="text-xs mt-1 opacity-70">Selecione uma frequência acima para repetir esta tarefa</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-between px-6 py-4 bg-muted/30 border-t border-border/40">
+            <Button variant="ghost" onClick={() => setOpen(false)} className="text-muted-foreground gap-2">
+              <X className="w-4 h-4" /> Descartar
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saveMut.isPending}
+              className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white gap-2 px-6 shadow-lg shadow-green-900/20"
+            >
+              {saveMut.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+              <CheckCircle2 className="w-4 h-4" />
+              {editId ? "Salvar Alterações" : "Criar Tarefa"}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

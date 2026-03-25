@@ -300,6 +300,30 @@ CREATE TABLE IF NOT EXISTS impostos (
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- ─── Tabela: tarefas ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS tarefas (
+  id SERIAL PRIMARY KEY,
+  escritorio_id INTEGER NOT NULL,
+  cliente_id INTEGER,
+  titulo TEXT NOT NULL,
+  descricao TEXT,
+  tipo TEXT,
+  prioridade TEXT NOT NULL DEFAULT 'media',
+  status TEXT NOT NULL DEFAULT 'pendente',
+  competencia TEXT,
+  departamento TEXT,
+  data_inicio TEXT,
+  data_vencimento TEXT,
+  data_conclusao TEXT,
+  responsavel TEXT,
+  recorrencia TEXT DEFAULT 'unica',
+  qtd_recorrencias INTEGER DEFAULT 1,
+  tags TEXT,
+  observacoes TEXT,
+  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
 -- ─── Migrações idempotentes (ADD COLUMN IF NOT EXISTS) ───────────────────────
 
 -- escritorios: colunas adicionadas em versões posteriores
@@ -376,6 +400,13 @@ ON CONFLICT (email) DO UPDATE SET
   senha  = '$2b$10$JjVzud9NPvIqzGBNt7No/uUIICO.lksj19BsZZNg2wii.AjJr11za',
   perfil = 'admin',
   ativo  = true;
+
+-- tarefas: colunas adicionadas em v1.9.4
+ALTER TABLE tarefas ADD COLUMN IF NOT EXISTS competencia TEXT;
+ALTER TABLE tarefas ADD COLUMN IF NOT EXISTS departamento TEXT;
+ALTER TABLE tarefas ADD COLUMN IF NOT EXISTS data_inicio TEXT;
+ALTER TABLE tarefas ADD COLUMN IF NOT EXISTS qtd_recorrencias INTEGER DEFAULT 1;
+ALTER TABLE tarefas ADD COLUMN IF NOT EXISTS tags TEXT;
 
 -- ─── Auto-gera slug para escritórios sem slug ─────────────────────────────────
 DO $$
