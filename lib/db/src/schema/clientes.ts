@@ -45,6 +45,16 @@ export const clientesTable = pgTable("clientes", {
   documentoPessoalNome: text("documento_pessoal_nome"),
   comprovanteEndereco: text("comprovante_endereco"),
   comprovanteEnderecoNome: text("comprovante_endereco_nome"),
+  // Dados fiscais
+  faturamentoAnual: text("faturamento_anual"),
+  faturamentoMes: text("faturamento_mes"),
+  anexoSimples: text("anexo_simples"),
+  dasValorMensal: text("das_valor_mensal"),
+  optanteSimples: text("optante_simples"),
+  situacaoSimples: text("situacao_simples"),
+  dataOpcaoSimples: text("data_opcao_simples"),
+  regimeFiscalObs: text("regime_fiscal_obs"),
+  aliquotaEfetiva: text("aliquota_efetiva"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
