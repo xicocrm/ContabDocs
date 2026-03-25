@@ -47,7 +47,11 @@ function verifyPortalToken(authHeader?: string): { clienteId: number; escritorio
 
 function verifyMainToken(authHeader?: string): boolean {
   if (!authHeader?.startsWith("Bearer ")) return false;
-  try { jwt.verify(authHeader.slice(7), SECRET); return true; } catch { return false; }
+  try {
+    const payload = jwt.verify(authHeader.slice(7), SECRET) as any;
+    if (payload.type === "portal") return false;
+    return true;
+  } catch { return false; }
 }
 
 // ─── Portal Login ────────────────────────────────────────────────────────────

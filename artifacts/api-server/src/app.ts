@@ -30,18 +30,25 @@ app.use(
 );
 
 const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(",").map(s => s.trim())
-  : undefined;
+  ? process.env.CORS_ORIGINS.split(",").map(s => s.trim()).filter(Boolean)
+  : [];
+
+const isProduction = process.env.NODE_ENV === "production";
 
 app.use(
   cors(
-    allowedOrigins
+    isProduction && allowedOrigins.length > 0
       ? {
           origin: allowedOrigins,
           credentials: true,
           methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         }
-      : undefined,
+      : isProduction
+        ? {
+            origin: false,
+            credentials: true,
+          }
+        : undefined,
   ),
 );
 
@@ -49,8 +56,6 @@ app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ extended: true, limit: "5mb" }));
 
 app.disable("x-powered-by");
-
-app.use("/uploads", express.static(UPLOADS_DIR, { dotfiles: "deny", index: false }));
 
 app.use("/api", router);
 
