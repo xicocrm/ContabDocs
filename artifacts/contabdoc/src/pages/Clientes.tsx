@@ -74,6 +74,17 @@ const emptyContrato = {
 
 function gerarCodigoCliente(total: number) { return `CLI-${String(total + 1).padStart(4, '0')}`; }
 
+const REGIME_LABELS: Record<string, string> = {
+  simples_nacional: "Simples Nacional",
+  mei:              "MEI",
+  lucro_presumido:  "Lucro Presumido",
+  lucro_real:       "Lucro Real",
+  lucro_arbitrado:  "Lucro Arbitrado",
+  imune_isento:     "Imune / Isento",
+  autonomo_pf:      "Autônomo / PF",
+};
+function regimeLabel(r?: string | null) { return r ? (REGIME_LABELS[r] ?? r) : "—"; }
+
 function SituacaoBadge({ situacao }: { situacao?: string | null }) {
   if (!situacao) return <span className="text-muted-foreground text-xs">—</span>;
   const ok = situacao.toUpperCase().includes('ATIVA') || situacao.toUpperCase().includes('REGULAR');
@@ -408,7 +419,13 @@ export default function ClientesPage() {
                         <Select value={clienteForm.regimeTributario} onValueChange={(v) => setClienteForm((p: any) => ({ ...p, regimeTributario: v }))}>
                           <SelectTrigger className="bg-background"><SelectValue placeholder="Selecione..." /></SelectTrigger>
                           <SelectContent>
-                            {['Simples Nacional', 'Lucro Presumido', 'Lucro Real', 'MEI', 'Autônomo / PF'].map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                            <SelectItem value="simples_nacional">Simples Nacional</SelectItem>
+                            <SelectItem value="mei">MEI</SelectItem>
+                            <SelectItem value="lucro_presumido">Lucro Presumido</SelectItem>
+                            <SelectItem value="lucro_real">Lucro Real</SelectItem>
+                            <SelectItem value="lucro_arbitrado">Lucro Arbitrado</SelectItem>
+                            <SelectItem value="imune_isento">Imune / Isento</SelectItem>
+                            <SelectItem value="autonomo_pf">Autônomo / PF</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
@@ -1066,7 +1083,7 @@ export default function ClientesPage() {
                       </TableCell>
                       <TableCell>
                         {c.regimeTributario ? (
-                          <span className="px-2 py-0.5 text-xs rounded-md border border-border/40 text-muted-foreground">{c.regimeTributario}</span>
+                          <span className="px-2 py-0.5 text-xs rounded-md border border-border/40 text-muted-foreground">{regimeLabel(c.regimeTributario)}</span>
                         ) : <span className="text-muted-foreground text-xs">—</span>}
                       </TableCell>
                       <TableCell><SituacaoBadge situacao={c.situacaoReceita} /></TableCell>
