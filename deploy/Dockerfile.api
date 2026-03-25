@@ -1,18 +1,11 @@
-FROM node:20-slim AS base
+FROM node:20-slim AS builder
 RUN npm install -g pnpm@9
 WORKDIR /app
 
-FROM base AS deps
-COPY package.json pnpm-workspace.yaml ./
-COPY artifacts/api-server/package.json ./artifacts/api-server/
-COPY lib/db/package.json lib/db/tsconfig.json ./lib/db/
-COPY lib/api-zod/package.json ./lib/api-zod/
-COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
-RUN pnpm install --no-lockfile
+COPY . .
 
-FROM deps AS builder
-COPY artifacts/api-server ./artifacts/api-server
-COPY lib ./lib
+RUN pnpm install --no-frozen-lockfile
+
 RUN pnpm --filter @workspace/api-server run build
 
 FROM node:20-slim AS runner
@@ -20,15 +13,16 @@ WORKDIR /app
 
 COPY --from=builder /app/artifacts/api-server/dist ./artifacts/api-server/dist
 COPY --from=builder /app/artifacts/api-server/package.json ./artifacts/api-server/package.json
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
 
-COPY lib/db/src ./lib/db/src
-COPY lib/db/package.json lib/db/tsconfig.json ./lib/db/
-COPY lib/db/drizzle.config.ts ./lib/db/drizzle.config.ts
-COPY lib/api-zod ./lib/api-zod
-COPY lib/integrations-anthropic-ai/src ./lib/integrations-anthropic-ai/src
-COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
+COPY --from=builder /app/lib/db/src ./lib/db/src
+COPY --from=builder /app/lib/db/package.json ./lib/db/package.json
+COPY --from=builder /app/lib/db/tsconfig.json ./lib/db/tsconfig.json
+COPY --from=builder /app/lib/db/drizzle.config.ts ./lib/db/drizzle.config.ts
+COPY --from=builder /app/lib/api-zod ./lib/api-zod
+COPY --from=builder /app/lib/integrations-anthropic-ai/src ./lib/integrations-anthropic-ai/src
+COPY --from=builder /app/lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/package.json
 
 RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
 
