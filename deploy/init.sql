@@ -333,6 +333,7 @@ ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_municipal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_municipal_nome TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_estadual TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_estadual_nome TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS iptu_numero TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS documento_pessoal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS documento_pessoal_nome TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS comprovante_endereco TEXT;
