@@ -24,6 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getListarUsuariosQueryKey, getListarIntegracoesQueryKey } from "@workspace/api-client-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 
 type ConfigField = {
   key: string;
@@ -221,6 +222,7 @@ export default function ConfiguracoesPage() {
   const [usrOpen, setUsrOpen] = useState(false);
   const [usrEditId, setUsrEditId] = useState<number|null>(null);
   const [usrForm, setUsrForm] = useState({ nome: '', email: '', senha: '', perfil: 'operador' as UsuarioPerfil, ativo: true });
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const handleUserSave = async () => {
     try {
@@ -324,7 +326,7 @@ export default function ConfiguracoesPage() {
                         <TableCell>{u.ativo ? <span className="text-green-400 text-xs font-semibold">ATIVO</span> : <span className="text-muted-foreground text-xs font-semibold">INATIVO</span>}</TableCell>
                         <TableCell className="text-right">
                           <Button variant="ghost" size="icon" onClick={() => { setUsrForm({ nome: u.nome, email: u.email, senha: '', perfil: u.perfil, ativo: u.ativo ?? true }); setUsrEditId(u.id); setUsrOpen(true); }}><Edit className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => { if (confirm('Excluir?')) deleteUsr.mutateAsync({ id: u.id }).then(() => queryClient.invalidateQueries({ queryKey: getListarUsuariosQueryKey() })); }}><Trash2 className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" className="text-destructive hover:bg-destructive/10" onClick={() => setDeleteTarget({ id: u.id, name: u.nome || u.email || `#${u.id}` })}><Trash2 className="w-4 h-4" /></Button>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -379,6 +381,13 @@ export default function ConfiguracoesPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => { if (deleteTarget) { deleteUsr.mutateAsync({ id: deleteTarget.id }).then(() => queryClient.invalidateQueries({ queryKey: getListarUsuariosQueryKey() })); setDeleteTarget(null); } }}
+        itemName={deleteTarget?.name}
+      />
     </AppLayout>
   );
 }

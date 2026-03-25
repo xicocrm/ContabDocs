@@ -20,6 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { formatters } from "@/lib/formatters";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
@@ -148,6 +149,7 @@ export default function ClientesPage() {
   const [contratoId, setContratoId]         = useState<number | null>(null);
   const [contratoForm, setContratoForm]     = useState<any>(emptyContrato);
   const [alvaras, setAlvaras]               = useState<any[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string; type: "cliente" | "contrato" } | null>(null);
 
   const { data: contratos = [] } = useListarContratos(clienteId ? { clienteId } : undefined);
 
@@ -249,8 +251,8 @@ export default function ClientesPage() {
   };
 
   const salvarCliente = async () => {
-    if (!clienteForm.razaoSocial && !clienteForm.nomeResponsavel) {
-      toast({ title: "Preencha o nome / razão social", variant: "destructive" }); return;
+    if (!clienteForm.razaoSocial && !clienteForm.cpf && !clienteForm.cnpj) {
+      toast({ title: "Preencha a Razão Social ou CPF/CNPJ", variant: "destructive" }); return;
     }
     setIsSavingCliente(true);
     try {
@@ -295,7 +297,6 @@ export default function ClientesPage() {
   };
 
   const excluirClienteHandler = async (id: number) => {
-    if (!confirm("Deseja excluir este cliente e todos os seus dados?")) return;
     try {
       await excluirCliente.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getListarClientesQueryKey() });
@@ -336,7 +337,6 @@ export default function ClientesPage() {
   };
 
   const excluirContratoHandler = async (id: number) => {
-    if (!confirm("Deseja excluir este contrato?")) return;
     try {
       await excluirContrato.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getListarContratosQueryKey({ clienteId: clienteId! }) });
@@ -500,10 +500,6 @@ export default function ClientesPage() {
                           <Input name="nomeFantasia" value={clienteForm.nomeFantasia} onChange={handleClienteChange} className="bg-background" />
                         </div>
                       )}
-                      <div className="space-y-2">
-                        <Label>Nome do Responsável</Label>
-                        <Input name="nomeResponsavel" value={clienteForm.nomeResponsavel} onChange={handleClienteChange} className="bg-background" />
-                      </div>
                       {clienteForm.tipo === 'PJ' && (
                         <div className="space-y-2">
                           <Label>Atividade Principal (CNAE)</Label>
@@ -695,7 +691,7 @@ export default function ClientesPage() {
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                 <Button variant="ghost" size="icon" onClick={() => openEditContrato(c)} className="h-8 w-8 hover:text-primary"><Edit className="w-4 h-4" /></Button>
-                                <Button variant="ghost" size="icon" onClick={() => excluirContratoHandler(c.id)} className="h-8 w-8 hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                                <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ id: c.id, name: c.numeroContrato || `#${c.id}`, type: "contrato" })} className="h-8 w-8 hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -974,7 +970,7 @@ export default function ClientesPage() {
                       <TableCell className="text-right pr-5" onClick={e => e.stopPropagation()}>
                         <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           <Button variant="ghost" size="icon" onClick={() => openEdit(c)} className="h-8 w-8 hover:text-primary"><Edit className="w-4 h-4" /></Button>
-                          <Button variant="ghost" size="icon" onClick={() => excluirClienteHandler(c.id)} className="h-8 w-8 hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ id: c.id, name: c.nomeFantasia || c.razaoSocial || `#${c.id}`, type: "cliente" })} className="h-8 w-8 hover:text-destructive"><Trash2 className="w-4 h-4" /></Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -985,6 +981,19 @@ export default function ClientesPage() {
           </CardContent>
         </Card>
       </div>
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => {
+          if (deleteTarget) {
+            if (deleteTarget.type === "cliente") excluirClienteHandler(deleteTarget.id);
+            else excluirContratoHandler(deleteTarget.id);
+            setDeleteTarget(null);
+          }
+        }}
+        itemName={deleteTarget?.name}
+      />
     </AppLayout>
   );
 }

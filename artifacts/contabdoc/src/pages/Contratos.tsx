@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatters } from "@/lib/formatters";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Search, Edit, Trash2, Calendar, DollarSign, FileText } from "lucide-react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { getListarContratosQueryKey } from "@workspace/api-client-react";
 
@@ -40,6 +41,7 @@ export default function ContratosPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>(initialForm);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const getClientName = (id: number): string => {
     const c = clientes.find(cl => cl.id === id);
@@ -64,14 +66,12 @@ export default function ContratosPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if(confirm("Tem certeza que deseja excluir este contrato?")) {
-      try {
-        await deleteMutation.mutateAsync({ id });
-        queryClient.invalidateQueries({ queryKey: getListarContratosQueryKey() });
-        toast({ title: "Excluído com sucesso" });
-      } catch (e) {
-        toast({ title: "Erro", variant: "destructive" });
-      }
+    try {
+      await deleteMutation.mutateAsync({ id });
+      queryClient.invalidateQueries({ queryKey: getListarContratosQueryKey() });
+      toast({ title: "Excluído com sucesso" });
+    } catch (e) {
+      toast({ title: "Erro", variant: "destructive" });
     }
   };
 
@@ -169,7 +169,7 @@ export default function ContratosPage() {
                         <Button variant="ghost" size="icon" onClick={() => openEdit(c)} className="h-8 w-8 hover:text-primary">
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(c.id)} className="h-8 w-8 hover:text-destructive hover:bg-destructive/10">
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteTarget({ id: c.id, name: c.numeroContrato || `#${c.id}` })} className="h-8 w-8 hover:text-destructive hover:bg-destructive/10">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -272,6 +272,13 @@ export default function ContratosPage() {
           </DialogContent>
         </Dialog>
       </div>
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => { if (deleteTarget) { handleDelete(deleteTarget.id); setDeleteTarget(null); } }}
+        itemName={deleteTarget?.name}
+      />
     </AppLayout>
   );
 }

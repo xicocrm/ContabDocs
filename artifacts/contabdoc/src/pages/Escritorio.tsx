@@ -26,6 +26,7 @@ import {
   Loader2, Plus, Search, Edit, Trash2, Building2, User, ArrowLeft,
   CheckCircle2, AlertTriangle, Save, MapPin, PenLine, Upload, X
 } from "lucide-react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 
 const emptyEscritorio = {
   tipo: "PJ", cnpj: "", cpf: "", razaoSocial: "", nomeFantasia: "",
@@ -65,6 +66,7 @@ export default function EscritorioPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchingCep, setIsSearchingCep] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const filtered = escritorios.filter(e =>
     (e.razaoSocial || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -189,7 +191,6 @@ export default function EscritorioPage() {
   };
 
   const excluir = async (id: number) => {
-    if (!confirm("Deseja excluir este escritório?")) return;
     try {
       await excluirEscritorio.mutateAsync({ id });
       queryClient.invalidateQueries({ queryKey: getListarEscritoriosQueryKey() });
@@ -631,7 +632,7 @@ export default function EscritorioPage() {
                         <Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-primary/10 hover:text-primary" onClick={() => openEdit(e)}>
                           <Edit className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => excluir(e.id)}>
+                        <Button variant="ghost" size="icon" className="w-8 h-8 hover:bg-destructive/10 hover:text-destructive" onClick={() => setDeleteTarget({ id: e.id, name: e.nomeFantasia || e.razaoSocial || `#${e.id}` })}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
@@ -647,6 +648,13 @@ export default function EscritorioPage() {
           <p className="text-xs text-muted-foreground text-right">{filtered.length} escritório{filtered.length !== 1 ? "s" : ""} encontrado{filtered.length !== 1 ? "s" : ""}</p>
         )}
       </div>
+
+      <DeleteConfirmDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onConfirm={() => { if (deleteTarget) { excluir(deleteTarget.id); setDeleteTarget(null); } }}
+        itemName={deleteTarget?.name}
+      />
     </AppLayout>
   );
 }

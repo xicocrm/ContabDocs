@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -277,6 +278,7 @@ export function TabGoverno({
   const [alvaraForm, setAlvaraForm]       = useState<Alvara>(emptyAlvara());
   const [savingAlvara, setSavingAlvara]   = useState(false);
   const [extractingAlvara, setExtractingAlvara] = useState(false);
+  const [deleteAlvaraTarget, setDeleteAlvaraTarget] = useState<{ id: number; name: string } | null>(null);
 
   const nomeJunta = JUNTAS_COMERCIAIS[form.jucebUf || "BA"] || "Junta Comercial";
 
@@ -307,7 +309,6 @@ export function TabGoverno({
   };
 
   const excluirAlvara = async (id: number) => {
-    if (!confirm("Excluir este alvará?")) return;
     try {
       await onAlvaraDelete(id);
       toast({ title: "✓ Alvará excluído" });
@@ -547,7 +548,7 @@ export function TabGoverno({
           ) : (
             <div className="space-y-2">
               {alvaras.map(a => (
-                <AlvaraRow key={a.id} a={a} onEdit={openEditAlvara} onDelete={excluirAlvara} />
+                <AlvaraRow key={a.id} a={a} onEdit={openEditAlvara} onDelete={(id) => { const alv = alvaras.find(x => x.id === id); setDeleteAlvaraTarget({ id, name: alv?.numero || `#${id}` }); }} />
               ))}
             </div>
           )}
@@ -648,6 +649,13 @@ export function TabGoverno({
           </div>
         </DialogContent>
       </Dialog>
+
+      <DeleteConfirmDialog
+        open={!!deleteAlvaraTarget}
+        onOpenChange={(open) => { if (!open) setDeleteAlvaraTarget(null); }}
+        onConfirm={() => { if (deleteAlvaraTarget) { excluirAlvara(deleteAlvaraTarget.id); setDeleteAlvaraTarget(null); } }}
+        itemName={deleteAlvaraTarget?.name}
+      />
     </div>
   );
 }
