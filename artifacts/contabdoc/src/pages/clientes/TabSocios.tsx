@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Trash2, User, Users } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Trash2, User, Users, Paperclip, Upload, X, Eye, FileText } from "lucide-react";
 
 const QUALIFICACOES = [
   "22-Sócio", "49-Sócio-Administrador", "05-Administrador", "10-Diretor",
@@ -35,15 +37,113 @@ interface Socio {
   dataNascimento: string;
   capitalSocial: string;
   nomeMae: string;
+  documentoPessoal?: string;
+  documentoPessoalNome?: string;
+  comprovanteEndereco?: string;
+  comprovanteEnderecoNome?: string;
 }
 
 const emptySocio = (): Socio => ({
   nome: "", qualificacao: "", cpf: "", dataNascimento: "", capitalSocial: "", nomeMae: "",
+  documentoPessoal: "", documentoPessoalNome: "",
+  comprovanteEndereco: "", comprovanteEnderecoNome: "",
 });
 
 interface TabSociosProps {
   value: string;
   onChange: (json: string) => void;
+}
+
+function FileViewDialog({ open, onClose, arquivo, arquivoNome }: {
+  open: boolean; onClose: () => void; arquivo: string; arquivoNome: string;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl max-h-[90vh] bg-card border-border/50 p-0 overflow-hidden">
+        <DialogHeader className="px-5 py-4 border-b border-border/50">
+          <DialogTitle className="flex items-center gap-2 text-sm">
+            <Paperclip className="w-4 h-4 text-primary" /> {arquivoNome}
+          </DialogTitle>
+        </DialogHeader>
+        <div style={{ minHeight: "60vh" }}>
+          {arquivo.startsWith("data:image") ? (
+            <img src={arquivo} alt={arquivoNome} className="max-w-full mx-auto" />
+          ) : (
+            <iframe src={arquivo} title={arquivoNome} className="w-full h-full min-h-[65vh] border-0" />
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DocUploadSlot({
+  label, variant = "primary",
+  arquivoNome, arquivo,
+  onFile, onClear,
+}: {
+  label: string; variant?: "primary" | "green";
+  arquivoNome: string; arquivo: string;
+  onFile: (b64: string, nome: string) => void;
+  onClear: () => void;
+}) {
+  const { toast } = useToast();
+  const ref = useRef<HTMLInputElement>(null);
+  const [viewOpen, setViewOpen] = useState(false);
+
+  const iconCls = variant === "green" ? "text-emerald-400" : "text-primary";
+  const filledCls = variant === "green"
+    ? "bg-emerald-500/5 border-emerald-500/20"
+    : "bg-primary/5 border-primary/20";
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.size > 5 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande. Máx 5MB.", variant: "destructive" }); return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => onFile(reader.result as string, f.name);
+    reader.readAsDataURL(f);
+    e.target.value = "";
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className={`flex flex-col gap-1.5 p-2.5 rounded-lg border ${arquivoNome ? filledCls : "bg-secondary/20 border-border/40"}`}>
+        {arquivoNome ? (
+          <div className="flex items-center gap-2">
+            <FileText className={`w-3.5 h-3.5 ${iconCls} shrink-0`} />
+            <span className="text-xs text-foreground truncate flex-1">{arquivoNome}</span>
+            <button type="button" onClick={() => setViewOpen(true)} className={`p-0.5 rounded ${iconCls} hover:opacity-70`} title="Visualizar">
+              <Eye className="w-3 h-3" />
+            </button>
+            <button type="button" onClick={onClear} className="p-0.5 rounded text-muted-foreground hover:text-destructive" title="Remover">
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 text-muted-foreground/60">
+            <Paperclip className="w-3.5 h-3.5" />
+            <span className="text-xs">Nenhum arquivo</span>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={() => ref.current?.click()}
+          className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded border border-border/40 bg-secondary/30 text-[11px] text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+        >
+          <Upload className="w-3 h-3" />
+          {arquivoNome ? "Trocar" : "Anexar"}
+        </button>
+      </div>
+      <input ref={ref} type="file" accept=".pdf,.png,.jpg,.jpeg" className="hidden" onChange={handleFile} />
+      {viewOpen && arquivo && (
+        <FileViewDialog open={viewOpen} onClose={() => setViewOpen(false)} arquivo={arquivo} arquivoNome={arquivoNome} />
+      )}
+    </div>
+  );
 }
 
 export function TabSocios({ value, onChange }: TabSociosProps) {
@@ -173,6 +273,43 @@ export function TabSocios({ value, onChange }: TabSociosProps) {
                   onChange={e => setSocioField(i, "nomeMae", e.target.value.toUpperCase())}
                   placeholder="Nome completo da mãe"
                   className="bg-background/60 uppercase"
+                />
+              </div>
+            </div>
+
+            {/* Documentos do Sócio */}
+            <div className="mt-4 pt-4 border-t border-border/30">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-3">
+                <Paperclip className="w-3 h-3" /> Documentos do Sócio
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <DocUploadSlot
+                  label="Documento Pessoal (RG, CNH, Passaporte)"
+                  colorClass="primary"
+                  arquivoNome={s.documentoPessoalNome || ""}
+                  arquivo={s.documentoPessoal || ""}
+                  onFile={(b64, nome) => {
+                    setSocioField(i, "documentoPessoal", b64);
+                    setSocioField(i, "documentoPessoalNome", nome);
+                  }}
+                  onClear={() => {
+                    setSocioField(i, "documentoPessoal", "");
+                    setSocioField(i, "documentoPessoalNome", "");
+                  }}
+                />
+                <DocUploadSlot
+                  label="Comprovante de Endereço"
+                  colorClass="emerald-400"
+                  arquivoNome={s.comprovanteEnderecoNome || ""}
+                  arquivo={s.comprovanteEndereco || ""}
+                  onFile={(b64, nome) => {
+                    setSocioField(i, "comprovanteEndereco", b64);
+                    setSocioField(i, "comprovanteEnderecoNome", nome);
+                  }}
+                  onClear={() => {
+                    setSocioField(i, "comprovanteEndereco", "");
+                    setSocioField(i, "comprovanteEnderecoNome", "");
+                  }}
                 />
               </div>
             </div>
