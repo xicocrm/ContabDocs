@@ -109,6 +109,12 @@ router.get("/cnpj/:cnpj", async (req, res) => {
       email: String(data.email || ""),
       capitalSocial: String(data.capital_social || ""),
       socios,
+      // Simples Nacional / MEI
+      simplesOptante: data.opcao_pelo_simples ?? data.simples_optante ?? null,
+      simplesDataOpcao: data.data_opcao_pelo_simples ?? null,
+      simplesDataExclusao: data.data_exclusao_do_simples ?? null,
+      meiOptante: data.opcao_pelo_mei ?? data.mei_optante ?? null,
+      meiDataOpcao: data.data_opcao_pelo_mei ?? null,
     };
 
     res.json(resultado);
