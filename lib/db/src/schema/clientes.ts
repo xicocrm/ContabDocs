@@ -34,6 +34,7 @@ export const clientesTable = pgTable("clientes", {
   jucebSituacao: text("juceb_situacao"),
   jucebObservacoes: text("juceb_observacoes"),
   inscricaoMunicipal: text("inscricao_municipal"),
+  jucebUf: text("juceb_uf").default("BA"),
   inscricaoEstadual: text("inscricao_estadual"),
   arquivoInscricaoMunicipal: text("arquivo_inscricao_municipal"),
   arquivoInscricaoMunicipalNome: text("arquivo_inscricao_municipal_nome"),
