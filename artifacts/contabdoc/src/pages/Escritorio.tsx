@@ -24,14 +24,16 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Loader2, Plus, Search, Edit, Trash2, Building2, User, ArrowLeft,
-  CheckCircle2, AlertTriangle, Save, MapPin
+  CheckCircle2, AlertTriangle, Save, MapPin, PenLine, Upload, X
 } from "lucide-react";
 
 const emptyEscritorio = {
   tipo: "PJ", cnpj: "", cpf: "", razaoSocial: "", nomeFantasia: "",
   nomeResponsavel: "", email: "", telefone: "", celular: "",
   cep: "", logradouro: "", numero: "", complemento: "",
-  bairro: "", municipio: "", uf: "", situacao: "", slug: "", logoUrl: ""
+  bairro: "", municipio: "", uf: "", situacao: "", slug: "", logoUrl: "",
+  contadorNome: "", contadorCrc: "", contadorCpf: "", contadorEmail: "",
+  contadorTelefone: "", contadorAssinatura: "",
 };
 
 function SituacaoBadge({ situacao }: { situacao?: string | null }) {
@@ -414,6 +416,117 @@ export default function EscritorioPage() {
                   <div className="space-y-2">
                     <Label>UF</Label>
                     <Input name="uf" value={form.uf} onChange={handleChange} className="bg-background uppercase" maxLength={2} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados do Contador */}
+              <div className="pt-4 border-t border-border/50">
+                <div className="flex items-center gap-2 mb-4">
+                  <PenLine className="w-4 h-4 text-primary" />
+                  <Label className="text-muted-foreground text-xs uppercase tracking-wider">Dados do Contador</Label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Nome do Contador</Label>
+                    <Input name="contadorNome" value={form.contadorNome} onChange={handleChange} placeholder="Nome completo do contador responsável" className="bg-background" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>CRC</Label>
+                    <Input name="contadorCrc" value={form.contadorCrc} onChange={handleChange} placeholder="CRC/UF-000000/O-0" className="bg-background font-mono" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>CPF do Contador</Label>
+                    <Input
+                      name="contadorCpf"
+                      value={form.contadorCpf}
+                      onChange={(e) => {
+                        const v = formatters.cpf(e.target.value);
+                        setForm((p: any) => ({ ...p, contadorCpf: v }));
+                      }}
+                      placeholder="000.000.000-00"
+                      className="bg-background font-mono"
+                      maxLength={14}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>E-mail do Contador</Label>
+                    <Input name="contadorEmail" value={form.contadorEmail} onChange={handleChange} type="email" placeholder="contador@exemplo.com.br" className="bg-background" />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Telefone do Contador</Label>
+                    <Input
+                      name="contadorTelefone"
+                      value={form.contadorTelefone}
+                      onChange={(e) => {
+                        const v = formatters.phone(e.target.value);
+                        setForm((p: any) => ({ ...p, contadorTelefone: v }));
+                      }}
+                      placeholder="(00) 00000-0000"
+                      className="bg-background"
+                      maxLength={15}
+                    />
+                  </div>
+
+                  {/* Assinatura */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Assinatura do Contador</Label>
+                    <div className="flex flex-col sm:flex-row items-start gap-4 p-4 rounded-xl bg-secondary/20 border border-border/40">
+                      {form.contadorAssinatura ? (
+                        <div className="relative">
+                          <img
+                            src={form.contadorAssinatura}
+                            alt="Assinatura do Contador"
+                            className="h-20 max-w-[280px] object-contain rounded-lg border border-border/50 bg-white/5 p-2"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setForm((p: any) => ({ ...p, contadorAssinatura: "" }))}
+                            className="absolute -top-2 -right-2 w-5 h-5 bg-destructive rounded-full text-white text-[10px] flex items-center justify-center hover:bg-red-600 shadow"
+                            title="Remover assinatura"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-[280px] h-20 rounded-lg border-2 border-dashed border-border/50 flex items-center justify-center bg-secondary/20">
+                          <div className="text-center">
+                            <PenLine className="w-6 h-6 mx-auto mb-1 text-muted-foreground/40" />
+                            <p className="text-xs text-muted-foreground/60">Nenhuma assinatura</p>
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex flex-col gap-2">
+                        <label className="cursor-pointer">
+                          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border/50 bg-secondary/40 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
+                            <Upload className="w-4 h-4" />
+                            {form.contadorAssinatura ? "Trocar assinatura" : "Enviar assinatura"}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (!file) return;
+                              if (file.size > 1024 * 1024) {
+                                toast({ title: "Imagem muito grande", description: "Use uma imagem de até 1MB", variant: "destructive" });
+                                return;
+                              }
+                              const reader = new FileReader();
+                              reader.onload = (ev) => setForm((p: any) => ({ ...p, contadorAssinatura: ev.target?.result as string }));
+                              reader.readAsDataURL(file);
+                            }}
+                          />
+                        </label>
+                        <p className="text-xs text-muted-foreground">PNG, JPG ou SVG transparente. Máx 1MB</p>
+                        <p className="text-xs text-muted-foreground/60">Será usada em documentos e relatórios gerados pelo sistema.</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
