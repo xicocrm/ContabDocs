@@ -277,42 +277,6 @@ export function TabSocios({ value, onChange }: TabSociosProps) {
               </div>
             </div>
 
-            {/* Documentos do Sócio */}
-            <div className="mt-4 pt-4 border-t border-border/30">
-              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-3">
-                <Paperclip className="w-3 h-3" /> Documentos do Sócio
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <DocUploadSlot
-                  label="Documento Pessoal (RG, CNH, Passaporte)"
-                  colorClass="primary"
-                  arquivoNome={s.documentoPessoalNome || ""}
-                  arquivo={s.documentoPessoal || ""}
-                  onFile={(b64, nome) => {
-                    setSocioField(i, "documentoPessoal", b64);
-                    setSocioField(i, "documentoPessoalNome", nome);
-                  }}
-                  onClear={() => {
-                    setSocioField(i, "documentoPessoal", "");
-                    setSocioField(i, "documentoPessoalNome", "");
-                  }}
-                />
-                <DocUploadSlot
-                  label="Comprovante de Endereço"
-                  colorClass="emerald-400"
-                  arquivoNome={s.comprovanteEnderecoNome || ""}
-                  arquivo={s.comprovanteEndereco || ""}
-                  onFile={(b64, nome) => {
-                    setSocioField(i, "comprovanteEndereco", b64);
-                    setSocioField(i, "comprovanteEnderecoNome", nome);
-                  }}
-                  onClear={() => {
-                    setSocioField(i, "comprovanteEndereco", "");
-                    setSocioField(i, "comprovanteEnderecoNome", "");
-                  }}
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
       ))}

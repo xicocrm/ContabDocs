@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   TrendingUp, RefreshCw, CheckCircle, AlertCircle, Clock, Info,
   BarChart3, FileText, Loader2, ChevronDown, ChevronRight, BookOpen,
-  Calculator, AlertTriangle, DollarSign, Building2, Percent, Layers, Shield,
+  Calculator, AlertTriangle, DollarSign, Building2, Percent, Layers,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -152,153 +152,391 @@ interface CnaeInfo {
   meiDataOpcao: string | null;
 }
 
-// CPRB — Desoneração da Folha (Lei 12.546/2011 e alterações)
-// Setores que podem optar por CPRB em vez de 20% CPP
-const CPRB_SETORES: Array<{ prefixos: number[]; label: string; aliquota: string }> = [
-  { prefixos: [6201,6202,6203,6204,6209,6311,6319,6399], label: "Tecnologia da Informação / TIC", aliquota: "4,5%" },
-  { prefixos: [8220],                                      label: "Call Center",                   aliquota: "3,0%" },
-  { prefixos: [4110,4120,4211,4212,4213,4221,4222,4223,4291,4292,4299,4311,4312,4313,4319,4321,4322,4329,4330,4391,4392,4399], label: "Construção Civil",   aliquota: "4,5%" },
-  { prefixos: [1311,1312,1313,1314,1321,1322,1323,1330,1340,1351,1352,1353,1354,1359,1411,1412,1413,1414,1421,1422],          label: "Têxtil e Vestuário", aliquota: "1,0%" },
-  { prefixos: [1521,1529,1531,1532,1533,1539,1541,1542],                                                                       label: "Calçados",           aliquota: "1,0%" },
-  { prefixos: [5911,5912,5913,5914,5919,5920],                                                                                  label: "Cinema e Áudio",     aliquota: "1,0%" },
-  { prefixos: [4711,4712,4713],                                                                                                  label: "Varejo de Alimentos","aliquota": "1,0%" },
+const RAT_GRAU: Record<string, { grau: number; rat: number; desc: string }> = {
+  "01":{grau:3,rat:3,desc:"Grau 3 – Agricultura"}, "02":{grau:3,rat:3,desc:"Grau 3 – Silvicultura"}, "03":{grau:3,rat:3,desc:"Grau 3 – Pesca"},
+  "05":{grau:3,rat:3,desc:"Grau 3 – Extração"}, "06":{grau:3,rat:3,desc:"Grau 3 – Petróleo"}, "07":{grau:3,rat:3,desc:"Grau 3 – Mineração"},
+  "08":{grau:3,rat:3,desc:"Grau 3 – Ext. minerais"}, "09":{grau:3,rat:3,desc:"Grau 3 – Apoio extração"},
+  "10":{grau:2,rat:2,desc:"Grau 2 – Alimentos"}, "11":{grau:2,rat:2,desc:"Grau 2 – Bebidas"}, "12":{grau:3,rat:3,desc:"Grau 3 – Tabaco"},
+  "13":{grau:2,rat:2,desc:"Grau 2 – Têxtil"}, "14":{grau:2,rat:2,desc:"Grau 2 – Confecções"}, "15":{grau:2,rat:2,desc:"Grau 2 – Couros"},
+  "16":{grau:2,rat:2,desc:"Grau 2 – Madeira"}, "17":{grau:2,rat:2,desc:"Grau 2 – Papel"}, "18":{grau:2,rat:2,desc:"Grau 2 – Gráfica"},
+  "19":{grau:3,rat:3,desc:"Grau 3 – Petróleo/Coque"}, "20":{grau:3,rat:3,desc:"Grau 3 – Químicos"}, "21":{grau:2,rat:2,desc:"Grau 2 – Farmacêuticos"},
+  "22":{grau:2,rat:2,desc:"Grau 2 – Borracha/Plástico"}, "23":{grau:3,rat:3,desc:"Grau 3 – Min. não-metálicos"}, "24":{grau:3,rat:3,desc:"Grau 3 – Metalurgia"},
+  "25":{grau:3,rat:3,desc:"Grau 3 – Produtos de metal"}, "26":{grau:2,rat:2,desc:"Grau 2 – Eletrônicos"}, "27":{grau:2,rat:2,desc:"Grau 2 – Equip. elétricos"},
+  "28":{grau:3,rat:3,desc:"Grau 3 – Máquinas"}, "29":{grau:3,rat:3,desc:"Grau 3 – Veículos"}, "30":{grau:3,rat:3,desc:"Grau 3 – Transportes"},
+  "31":{grau:2,rat:2,desc:"Grau 2 – Móveis"}, "32":{grau:2,rat:2,desc:"Grau 2 – Diversos"}, "33":{grau:3,rat:3,desc:"Grau 3 – Manutenção de máq."},
+  "35":{grau:3,rat:3,desc:"Grau 3 – Elet/gás/vapor"}, "36":{grau:2,rat:2,desc:"Grau 2 – Água"}, "37":{grau:3,rat:3,desc:"Grau 3 – Esgoto"},
+  "38":{grau:3,rat:3,desc:"Grau 3 – Resíduos"}, "39":{grau:3,rat:3,desc:"Grau 3 – Descontaminação"},
+  "41":{grau:3,rat:3,desc:"Grau 3 – Construção"}, "42":{grau:3,rat:3,desc:"Grau 3 – Infraestrutura"}, "43":{grau:3,rat:3,desc:"Grau 3 – Serv. construção"},
+  "45":{grau:1,rat:1,desc:"Grau 1 – Comércio veículos"}, "46":{grau:1,rat:1,desc:"Grau 1 – Atacado"}, "47":{grau:1,rat:1,desc:"Grau 1 – Varejo"},
+  "49":{grau:2,rat:2,desc:"Grau 2 – Transp. terrestre"}, "50":{grau:2,rat:2,desc:"Grau 2 – Transp. aquaviário"}, "51":{grau:1,rat:1,desc:"Grau 1 – Transp. aéreo"},
+  "52":{grau:2,rat:2,desc:"Grau 2 – Armazenamento"}, "53":{grau:1,rat:1,desc:"Grau 1 – Correios"},
+  "55":{grau:1,rat:1,desc:"Grau 1 – Alojamento"}, "56":{grau:1,rat:1,desc:"Grau 1 – Alimentação"},
+  "58":{grau:1,rat:1,desc:"Grau 1 – Edição"}, "59":{grau:1,rat:1,desc:"Grau 1 – Cinema/Áudio"}, "60":{grau:1,rat:1,desc:"Grau 1 – Rádio/TV"},
+  "61":{grau:1,rat:1,desc:"Grau 1 – Telecom"}, "62":{grau:1,rat:1,desc:"Grau 1 – TI/Software"}, "63":{grau:1,rat:1,desc:"Grau 1 – Informação"},
+  "64":{grau:1,rat:1,desc:"Grau 1 – Financeiro"}, "65":{grau:1,rat:1,desc:"Grau 1 – Seguros"}, "66":{grau:1,rat:1,desc:"Grau 1 – Aux. financeiro"},
+  "68":{grau:1,rat:1,desc:"Grau 1 – Imóveis"},
+  "69":{grau:1,rat:1,desc:"Grau 1 – Jurídico/Contab."}, "70":{grau:1,rat:1,desc:"Grau 1 – Gestão"}, "71":{grau:1,rat:1,desc:"Grau 1 – Engenharia"},
+  "72":{grau:1,rat:1,desc:"Grau 1 – P&D"}, "73":{grau:1,rat:1,desc:"Grau 1 – Publicidade"}, "74":{grau:1,rat:1,desc:"Grau 1 – Profissional"},
+  "75":{grau:1,rat:1,desc:"Grau 1 – Veterinária"},
+  "77":{grau:1,rat:1,desc:"Grau 1 – Locação"}, "78":{grau:1,rat:1,desc:"Grau 1 – RH"}, "79":{grau:1,rat:1,desc:"Grau 1 – Viagens"},
+  "80":{grau:1,rat:1,desc:"Grau 1 – Vigilância"}, "81":{grau:2,rat:2,desc:"Grau 2 – Limpeza"}, "82":{grau:1,rat:1,desc:"Grau 1 – Administrativos"},
+  "84":{grau:1,rat:1,desc:"Grau 1 – Adm. pública"}, "85":{grau:1,rat:1,desc:"Grau 1 – Educação"},
+  "86":{grau:1,rat:1,desc:"Grau 1 – Saúde"}, "87":{grau:2,rat:2,desc:"Grau 2 – Resid. saúde"}, "88":{grau:1,rat:1,desc:"Grau 1 – Serv. sociais"},
+  "90":{grau:1,rat:1,desc:"Grau 1 – Artes"}, "91":{grau:1,rat:1,desc:"Grau 1 – Museus"}, "92":{grau:1,rat:1,desc:"Grau 1 – Jogos"}, "93":{grau:1,rat:1,desc:"Grau 1 – Esporte"},
+  "94":{grau:1,rat:1,desc:"Grau 1 – Associações"}, "95":{grau:1,rat:1,desc:"Grau 1 – Manutenção pessoal"}, "96":{grau:1,rat:1,desc:"Grau 1 – Serv. pessoais"},
+};
+interface FpasEntry { fpas: string; descricao: string; entidades: { entidade: string; aliquota: number }[] }
+const FPAS_TABLE: { prefixes: string[]; entry: FpasEntry }[] = [
+  { prefixes:["41","42","43"], entry:{ fpas:"655", descricao:"Construção civil", entidades:[{entidade:"SESI",aliquota:1.5},{entidade:"SENAI",aliquota:1.0},{entidade:"INCRA",aliquota:0.2},{entidade:"SEBRAE",aliquota:0.6},{entidade:"Sal. Educação",aliquota:2.5}] } },
+  { prefixes:["49","50","52","53"], entry:{ fpas:"868", descricao:"Transporte", entidades:[{entidade:"SEST",aliquota:1.5},{entidade:"SENAT",aliquota:1.0},{entidade:"INCRA",aliquota:0.2},{entidade:"SEBRAE",aliquota:0.6},{entidade:"Sal. Educação",aliquota:2.5}] } },
+  { prefixes:["01","02","03"], entry:{ fpas:"604", descricao:"Agropecuária", entidades:[{entidade:"SENAR",aliquota:2.5},{entidade:"INCRA",aliquota:0.2},{entidade:"Sal. Educação",aliquota:2.5}] } },
+  { prefixes:["64","65","66"], entry:{ fpas:"574", descricao:"Financeiro", entidades:[{entidade:"INCRA",aliquota:0.2},{entidade:"Sal. Educação",aliquota:2.5},{entidade:"SEBRAE",aliquota:0.6}] } },
+  { prefixes:["10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25","26","27","28","29","30","31","32","33","05","06","07","08","09","35","36","37","38","39"],
+    entry:{ fpas:"507", descricao:"Indústria", entidades:[{entidade:"SESI",aliquota:1.5},{entidade:"SENAI",aliquota:1.0},{entidade:"INCRA",aliquota:0.2},{entidade:"SEBRAE",aliquota:0.6},{entidade:"Sal. Educação",aliquota:2.5}] } },
 ];
-
-function detectarCPRB(cnaeCodigo: string): { elegivel: boolean; setor: string; aliquota: string } {
-  const cod = parseInt(cnaeCodigo.replace(/\D/g, ""), 10);
-  if (!cod) return { elegivel: false, setor: "", aliquota: "" };
-  for (const setor of CPRB_SETORES) {
-    if (setor.prefixos.includes(cod)) return { elegivel: true, setor: setor.label, aliquota: setor.aliquota };
-  }
-  return { elegivel: false, setor: "", aliquota: "" };
+const FPAS_DEFAULT: FpasEntry = { fpas:"515", descricao:"Comércio e serviços", entidades:[{entidade:"SESC",aliquota:1.5},{entidade:"SENAC",aliquota:1.0},{entidade:"INCRA",aliquota:0.2},{entidade:"SEBRAE",aliquota:0.6},{entidade:"Sal. Educação",aliquota:2.5}] };
+const CPRB_SETORES_RICH: { ids: string[]; descricao: string; aliquota: number; exemplo: string }[] = [
+  { ids:["6201","6202","6203","6204","6209","6311","6319","6399"], descricao:"TI / Tecnologia da Informação", aliquota:4.5, exemplo:"Desenvolvimento de software, consultorias de TI" },
+  { ids:["1811","1812","1813","1821","1822"], descricao:"Serviços gráficos", aliquota:2.5, exemplo:"Edição, impressão, acabamento gráfico" },
+  { ids:["1412","1421","1422","1531","1532","1533"], descricao:"Confecção/calçados", aliquota:1.0, exemplo:"Confecção de roupas e calçados" },
+  { ids:["4110","4120","4211","4212","4213","4221","4222","4223","4291","4292","4299","4311","4312","4313","4319","4321","4322","4329","4330","4391","4392","4399"], descricao:"Construção Civil", aliquota:4.5, exemplo:"Edifícios, obras de infraestrutura" },
+  { ids:["5611","5612","5620"], descricao:"Restaurantes e alimentação", aliquota:2.5, exemplo:"Restaurantes, bares, serviços de alimentação" },
+  { ids:["5911","5912","5913","5914","5920"], descricao:"Audiovisual/Cinema", aliquota:1.0, exemplo:"Produção, distribuição de filmes" },
+  { ids:["7311","7312","7319","7320"], descricao:"Publicidade e propaganda", aliquota:2.5, exemplo:"Agências de publicidade" },
+  { ids:["8220"], descricao:"Call Center", aliquota:3.0, exemplo:"Centrais de atendimento" },
+  { ids:["8511","8512","8513","8520","8531","8532","8541","8542","8550"], descricao:"Educação", aliquota:2.5, exemplo:"Ensino pré-escolar até superior" },
+];
+function getRatEntry(cnae: string) {
+  const prefix = String(cnae).replace(/\D/g,"").substring(0,2);
+  return RAT_GRAU[prefix] || { grau:1, rat:1, desc:"Grau 1 – Baixo risco" };
 }
+function getFpasEntry(cnae: string): FpasEntry {
+  const prefix = String(cnae).replace(/\D/g,"").substring(0,2);
+  for (const row of FPAS_TABLE) { if (row.prefixes.includes(prefix)) return row.entry; }
+  return FPAS_DEFAULT;
+}
+function getSimplexAnexo(cnae: string): { anexo: string; descricao: string; sujetoFatorR: boolean; aliquotaInicial: string } | null {
+  const p = parseInt(String(cnae).replace(/\D/g,"").substring(0,2));
+  if (p >= 45 && p <= 47) return { anexo:"I",   descricao:"Comércio",                                          sujetoFatorR:false, aliquotaInicial:"4,00%" };
+  if (p >= 10 && p <= 33) return { anexo:"II",  descricao:"Indústria de transformação",                        sujetoFatorR:false, aliquotaInicial:"4,50%" };
+  if (p === 41 || p === 42 || p === 43) return { anexo:"IV", descricao:"Construção civil (INSS patronal separado)", sujetoFatorR:false, aliquotaInicial:"4,50%" };
+  if (p === 62 || p === 63) return { anexo:"V",  descricao:"TI e desenvolvimento de software",                 sujetoFatorR:true,  aliquotaInicial:"15,50%" };
+  if (p === 71) return         { anexo:"IV", descricao:"Engenharia e arquitetura (INSS separado)",              sujetoFatorR:false, aliquotaInicial:"4,50%" };
+  if (p === 85) return         { anexo:"III", descricao:"Educação",                                            sujetoFatorR:true,  aliquotaInicial:"6,00%" };
+  if (p === 86 || p === 87 || p === 88) return { anexo:"III", descricao:"Saúde e assistência social",          sujetoFatorR:true,  aliquotaInicial:"6,00%" };
+  if (p === 69 || p === 70) return { anexo:"IV", descricao:"Jurídico, contabilidade (INSS separado)",          sujetoFatorR:false, aliquotaInicial:"4,50%" };
+  if (p >= 55 && p <= 56) return { anexo:"III", descricao:"Alojamento e alimentação",                          sujetoFatorR:true,  aliquotaInicial:"6,00%" };
+  if (p >= 58 && p <= 61) return { anexo:"III", descricao:"Comunicação e informação",                          sujetoFatorR:true,  aliquotaInicial:"6,00%" };
+  if (p >= 64 && p <= 66) return null;
+  if (p >= 49 && p <= 53) return { anexo:"III", descricao:"Transporte",                                        sujetoFatorR:true,  aliquotaInicial:"6,00%" };
+  if (p >= 73 && p <= 74) return { anexo:"V",   descricao:"Publicidade e consultoria",                         sujetoFatorR:true,  aliquotaInicial:"15,50%" };
+  if (p >= 78 && p <= 82) return { anexo:"III", descricao:"Serviços administrativos",                          sujetoFatorR:true,  aliquotaInicial:"6,00%" };
+  return { anexo:"III", descricao:"Serviços em geral",                                                          sujetoFatorR:true,  aliquotaInicial:"6,00%" };
+}
+function getCprbSetor(cnae: string) {
+  const cod = String(cnae).replace(/\D/g,"").substring(0,4);
+  return CPRB_SETORES_RICH.find(s => s.ids.includes(cod)) || null;
+}
+function getIssInfo(cnae: string): { sujeito: boolean; item: string; descricao: string } {
+  const p = parseInt(String(cnae).replace(/\D/g,"").substring(0,2));
+  if ((p >= 10 && p <= 33) || (p >= 45 && p <= 47) || p === 35 || p === 36)
+    return { sujeito:false, item:"—", descricao:"Atividade sujeita ao ICMS (mercadoria/produto), não ao ISS municipal" };
+  const map: Record<string, {item:string;descricao:string}> = {
+    "62":{ item:"1.07",  descricao:"Suporte técnico em TI, incluindo instalação, configuração e manutenção de software e bancos de dados" },
+    "63":{ item:"1.07",  descricao:"Serviços de informação em TI" },
+    "41":{ item:"7.02",  descricao:"Execução por administração, empreitada ou subempreitada de obras de construção civil" },
+    "42":{ item:"7.02",  descricao:"Obras de infraestrutura urbana" },
+    "43":{ item:"7.02",  descricao:"Serviços especializados de construção" },
+    "71":{ item:"7.01",  descricao:"Engenharia, agronomia, agrimensura, arquitetura, geologia, urbanismo" },
+    "69":{ item:"17.01", descricao:"Serviços jurídicos (advocacia, assessoria jurídica)" },
+    "70":{ item:"17.19", descricao:"Assessoria e consultoria empresarial" },
+    "73":{ item:"17.06", descricao:"Propaganda e publicidade, inclusive promoção de vendas" },
+    "74":{ item:"17.19", descricao:"Serviços de consultoria e assessoria profissional" },
+    "85":{ item:"8.01",  descricao:"Ensino pré-escolar, fundamental, médio e superior" },
+    "86":{ item:"4.01",  descricao:"Medicina e biomedicina (planos de saúde, pronto-socorro, hospitais)" },
+    "80":{ item:"11.02", descricao:"Vigilância, segurança ou monitoramento de bens, pessoas e semoventes" },
+    "81":{ item:"7.10",  descricao:"Limpeza, manutenção e conservação de imóveis, logradouros e piscinas" },
+    "49":{ item:"16.01", descricao:"Serviços de transporte de natureza municipal" },
+  };
+  const key = String(p).padStart(2,"0");
+  const info = map[key] || { item:"LC 116/03", descricao:"Atividade de prestação de serviço sujeita ao ISS municipal" };
+  return { sujeito:true, ...info };
+}
+const ANEXO_CORES: Record<string, string> = {
+  I:"bg-blue-500/20 text-blue-300 border-blue-500/30",
+  II:"bg-purple-500/20 text-purple-300 border-purple-500/30",
+  III:"bg-green-500/20 text-green-300 border-green-500/30",
+  IV:"bg-orange-500/20 text-orange-300 border-orange-500/30",
+  V:"bg-red-500/20 text-red-300 border-red-500/30",
+};
+type CnaeTab = "simples"|"previdencia"|"iss"|"desoneracao";
 
 function PanelCNAE({ cnaeInfo, loadingRF, onConsultar, cnpjValido }: {
   cnaeInfo: CnaeInfo | null; loadingRF: boolean; onConsultar: () => void; cnpjValido: boolean;
 }) {
-  const cprb = cnaeInfo ? detectarCPRB(cnaeInfo.cnaePrincipalCodigo) : null;
+  const [tab, setTab] = useState<CnaeTab>("simples");
+  const cnae = cnaeInfo?.cnaePrincipalCodigo || "";
+  const rat = cnae ? getRatEntry(cnae) : null;
+  const fpas = cnae ? getFpasEntry(cnae) : null;
+  const simplesAnexo = cnae ? getSimplexAnexo(cnae) : null;
+  const cprb = cnae ? getCprbSetor(cnae) : null;
+  const iss = cnae ? getIssInfo(cnae) : null;
+  const fpasTotal = fpas ? fpas.entidades.reduce((s,e) => s+e.aliquota, 0) : 0;
 
   return (
     <div className="space-y-4">
-      {/* CNAE Principal */}
       <SectionCollapse title="CNAE — Classificação Nacional de Atividades Econômicas" icon={<Layers className="w-4 h-4" />}>
-        <div className="space-y-3">
-          <div className="flex items-start gap-2.5 bg-secondary/20 rounded-xl border border-border/30 p-3.5">
-            <Info className="w-3.5 h-3.5 shrink-0 mt-0.5 text-blue-400" />
-            <span className="text-[11px] text-muted-foreground">
-              O CNAE é obtido diretamente da Receita Federal via CNPJ. Clique em "Consultar Receita Federal" para atualizar.
-            </span>
-          </div>
-
+        <div className="space-y-4">
           {cnaeInfo ? (
-            <div className="space-y-3">
-              {/* CNAE Principal */}
-              <div className="rounded-lg border border-border/40 bg-secondary/20 p-3.5">
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">CNAE Principal</p>
-                <p className="text-sm font-bold font-mono text-primary">{cnaeInfo.cnaePrincipalCodigo}</p>
-                <p className="text-sm mt-0.5">{cnaeInfo.cnaePrincipalDescricao}</p>
+            <div className="space-y-2">
+              <div className="rounded-xl border border-border/40 bg-secondary/20 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                      <span className="font-mono text-base font-bold text-primary">{cnaeInfo.cnaePrincipalCodigo}</span>
+                      <Badge variant="outline" className="text-[10px] text-emerald-300 border-emerald-500/40 bg-emerald-500/10">Principal</Badge>
+                      {rat && <Badge variant="outline" className="text-[10px] text-amber-300 border-amber-500/40 bg-amber-500/10">RAT {rat.rat}%</Badge>}
+                      {simplesAnexo && <Badge variant="outline" className={`text-[10px] border ${ANEXO_CORES[simplesAnexo.anexo] || ""}`}>Anexo {simplesAnexo.anexo}</Badge>}
+                    </div>
+                    <p className="text-sm">{cnaeInfo.cnaePrincipalDescricao}</p>
+                  </div>
+                </div>
               </div>
-
-              {/* CNAEs Secundários */}
               {cnaeInfo.cnaesSecundarios.length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-xs text-muted-foreground">CNAEs Secundários</p>
                   {cnaeInfo.cnaesSecundarios.map((c, i) => (
-                    <div key={i} className="rounded-lg border border-border/30 bg-secondary/10 px-3 py-2 flex items-start gap-2">
-                      <span className="font-mono text-xs text-muted-foreground shrink-0 pt-0.5">{c.codigo}</span>
-                      <span className="text-xs">{c.descricao}</span>
+                    <div key={i} className="rounded-lg border border-border/30 bg-secondary/10 px-3 py-2 flex items-center gap-3">
+                      <span className="font-mono text-xs text-muted-foreground shrink-0">{c.codigo}</span>
+                      <span className="text-xs text-muted-foreground flex-1">{c.descricao}</span>
+                      <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-500/30 shrink-0">Secundária</Badge>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           ) : (
-            <div className="text-center py-6 text-muted-foreground">
-              <Layers className="w-8 h-8 mx-auto mb-2 opacity-30" />
-              <p className="text-sm">CNAE não carregado</p>
-              <p className="text-xs">Consulte a Receita Federal para obter o CNAE atualizado</p>
+            <div className="text-center py-8 text-muted-foreground">
+              <Layers className="w-10 h-10 mx-auto mb-2 opacity-20" />
+              <p className="text-sm">CNAE não carregado ainda</p>
+              <p className="text-xs">Clique em "Consultar Receita Federal" para obter os dados</p>
             </div>
           )}
-
-          <Button type="button" variant="secondary" size="sm" onClick={onConsultar} disabled={loadingRF || !cnpjValido} className="gap-2">
-            {loadingRF ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-            Consultar Receita Federal
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button type="button" variant="secondary" size="sm" onClick={onConsultar} disabled={loadingRF || !cnpjValido} className="gap-2">
+              {loadingRF ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+              Consultar Receita Federal
+            </Button>
+            <div className="flex flex-wrap gap-3">
+              {[{l:"IBGE CNAE",url:"https://cnae.ibge.gov.br"},{l:"Simples Nacional",url:"https://www8.receita.fazenda.gov.br/SimplesNacional"},{l:"MEI",url:"https://mei.receita.economia.gov.br"},{l:"LC 116/ISS",url:"https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp116.htm"}].map(f => (
+                <a key={f.l} href={f.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-blue-400 hover:underline">
+                  <Info className="w-3 h-3" />{f.l}
+                </a>
+              ))}
+            </div>
+          </div>
         </div>
       </SectionCollapse>
 
-      {/* Regime Previdenciário */}
-      <SectionCollapse title="Regime Previdenciário Patronal" icon={<Shield className="w-4 h-4" />}>
-        <div className="space-y-3">
-          {/* CPP Padrão */}
-          <div className="rounded-xl border border-border/40 bg-secondary/20 p-4">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full bg-blue-400" />
-              <p className="text-sm font-semibold text-blue-300">CPP — Contribuição Patronal Previdenciária (Regime Padrão)</p>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <div className="bg-background/60 rounded-lg border border-border/30 p-2.5 text-center">
-                <p className="text-xs text-muted-foreground">INSS Patronal</p>
-                <p className="font-bold text-base text-blue-300">20%</p>
-                <p className="text-[10px] text-muted-foreground">sobre folha</p>
-              </div>
-              <div className="bg-background/60 rounded-lg border border-border/30 p-2.5 text-center">
-                <p className="text-xs text-muted-foreground">RAT (acidente)</p>
-                <p className="font-bold text-base text-amber-300">1%–3%</p>
-                <p className="text-[10px] text-muted-foreground">grau de risco</p>
-              </div>
-              <div className="bg-background/60 rounded-lg border border-border/30 p-2.5 text-center">
-                <p className="text-xs text-muted-foreground">Terceiros (SESI/SESC…)</p>
-                <p className="font-bold text-base text-violet-300">~5,8%</p>
-                <p className="text-[10px] text-muted-foreground">varia por setor</p>
-              </div>
-              <div className="bg-background/60 rounded-lg border border-border/30 p-2.5 text-center">
-                <p className="text-xs text-muted-foreground">Total Estimado</p>
-                <p className="font-bold text-base text-red-300">~27%</p>
-                <p className="text-[10px] text-muted-foreground">sobre a folha</p>
-              </div>
-            </div>
-            <p className="text-[11px] text-muted-foreground mt-2">
-              Além do INSS do empregado (7,5% a 14%), FGTS (8%) e 13º/férias proporcionais.
-            </p>
+      {cnaeInfo && (
+        <div className="rounded-xl border border-border/40 overflow-hidden">
+          <div className="flex items-center gap-2 px-4 py-3 bg-secondary/30 border-b border-border/40">
+            <FileText className="w-4 h-4 text-muted-foreground" />
+            <span className="font-semibold text-sm">Informações Tributárias</span>
+            <span className="font-mono text-xs text-muted-foreground ml-1">{cnaeInfo.cnaePrincipalCodigo} — {cnaeInfo.cnaePrincipalDescricao.slice(0,45)}{cnaeInfo.cnaePrincipalDescricao.length>45?"…":""}</span>
           </div>
+          <div className="flex border-b border-border/40 bg-secondary/10 overflow-x-auto">
+            {([["simples","Simples/MEI"],["previdencia","Previdência"],["iss","ISS"],["desoneracao","Desoneração"]] as [CnaeTab,string][]).map(([id,label]) => (
+              <button key={id} type="button" onClick={() => setTab(id)}
+                className={`px-4 py-2.5 text-xs font-medium transition-colors border-b-2 whitespace-nowrap ${tab===id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="p-4 space-y-3">
 
-          {/* CPRB — se elegível */}
-          {cprb?.elegivel && (
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="w-4 h-4 text-emerald-400" />
-                <p className="text-sm font-semibold text-emerald-300">CPRB — Desoneração da Folha (possível opção)</p>
-              </div>
-              <p className="text-xs text-muted-foreground mb-3">
-                O CNAE principal <strong>{cnaeInfo?.cnaePrincipalCodigo}</strong> pertence ao setor de <strong>{cprb.setor}</strong>,
-                que pode ser elegível à CPRB (Contribuição Previdenciária sobre Receita Bruta) em substituição ao CPP de 20%.
-              </p>
-              <div className="flex items-center gap-3">
-                <div className="bg-background/60 rounded-lg border border-emerald-500/30 px-4 py-2.5 text-center">
-                  <p className="text-xs text-muted-foreground">Alíquota CPRB</p>
-                  <p className="font-bold text-xl text-emerald-300">{cprb.aliquota}</p>
-                  <p className="text-[10px] text-muted-foreground">sobre receita bruta</p>
+            {tab === "simples" && (
+              <div className="space-y-3">
+                {simplesAnexo ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">Simples Nacional</span>
+                      <Badge className="text-[10px] bg-green-500/20 text-green-300 border border-green-500/30">Permitido</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3">
+                        <p className="text-[10px] text-muted-foreground mb-1">Anexo</p>
+                        <p className={`font-bold text-2xl ${ANEXO_CORES[simplesAnexo.anexo]?.split(" ")[1] || "text-primary"}`}>{simplesAnexo.anexo}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{simplesAnexo.descricao}</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3">
+                        <p className="text-[10px] text-muted-foreground mb-1">Alíquota Inicial</p>
+                        <p className="font-bold text-2xl text-emerald-300">{simplesAnexo.aliquotaInicial}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">RBT12 até R$ 180.000</p>
+                      </div>
+                    </div>
+                    {simplesAnexo.sujetoFatorR && (
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                        <div className="flex items-center gap-2 mb-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
+                          <span className="text-xs font-semibold text-amber-300">Fator R Aplicável</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Se <strong>Folha de Salários ≥ 28%</strong> do faturamento, a empresa pode tributar pelo <strong>Anexo III</strong> (menor alíquota).
+                          Fator R = Folha 12 meses ÷ Receita Bruta 12 meses.
+                        </p>
+                      </div>
+                    )}
+                    <p className="text-[10px] text-muted-foreground">Fonte: LC 123/2006, Resolução CGSN 140/2018</p>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
+                    <div className="flex items-center gap-2 mb-1"><AlertCircle className="w-3.5 h-3.5 text-red-400" /><span className="text-xs font-semibold text-red-300">Vedado ao Simples Nacional</span></div>
+                    <p className="text-[11px] text-muted-foreground">Este CNAE pertence ao setor financeiro (divisão 64–66) ou outra atividade vedada ao Simples Nacional.</p>
+                  </div>
+                )}
+                <div className="border-t border-border/30 pt-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold">MEI — Microempreendedor Individual</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground space-y-1">
+                    <p>• Limite de faturamento: <strong>R$ 81.000/ano</strong></p>
+                    <p>• Pode ter 1 empregado (salário mínimo ou piso da categoria)</p>
+                    <p>• DAS mensal fixo com INSS, ISS ou ICMS incluídos</p>
+                    <p>• Algumas atividades são vedadas ao MEI — consulte a lista no Portal do Empreendedor</p>
+                  </div>
                 </div>
-                <p className="text-[11px] text-muted-foreground flex-1">
-                  A CPRB substitui os 20% CPP mas mantém RAT e contribuições de terceiros.
-                  Verifique com o contador a conveniência da opção. Lei 12.546/2011 e alterações.
-                </p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Regimes especiais */}
-          <div className="rounded-lg border border-border/30 bg-secondary/10 p-3">
-            <p className="text-xs font-semibold mb-2">Isenções e Regimes Especiais</p>
-            <div className="space-y-1.5 text-[11px] text-muted-foreground">
-              <p><span className="text-sky-300 font-medium">MEI:</span> Contribuição fixa DAS mensal (INSS incluso). Sem CPP adicional se sem empregado.</p>
-              <p><span className="text-emerald-300 font-medium">Simples Nacional:</span> INSS patronal incluído na guia DAS para maioria dos anexos (exceto Anexo IV).</p>
-              <p><span className="text-slate-300 font-medium">Imune/Isento:</span> Entidades sem fins lucrativos podem ter redução ou isenção (verificar cada caso).</p>
-            </div>
+            {tab === "previdencia" && rat && fpas && (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground">INSS Patronal</p>
+                    <p className="font-bold text-lg text-blue-300">20%</p>
+                    <p className="text-[10px] text-muted-foreground">sobre a folha</p>
+                  </div>
+                  <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground">RAT — {rat.desc.split("–")[0].trim()}</p>
+                    <p className="font-bold text-lg text-amber-300">{rat.rat}%</p>
+                    <p className="text-[10px] text-muted-foreground">{(rat.desc.split("–")[1]||"").trim()}</p>
+                  </div>
+                  <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground">Terceiros (FPAS {fpas.fpas})</p>
+                    <p className="font-bold text-lg text-violet-300">{fpasTotal.toFixed(1)}%</p>
+                    <p className="text-[10px] text-muted-foreground">{fpas.descricao}</p>
+                  </div>
+                  <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                    <p className="text-[10px] text-muted-foreground">Total Estimado</p>
+                    <p className="font-bold text-lg text-red-300">~{(20+rat.rat+fpasTotal).toFixed(1)}%</p>
+                    <p className="text-[10px] text-muted-foreground">sobre a folha</p>
+                  </div>
+                </div>
+                <div className="rounded-lg border border-border/30 bg-secondary/10 p-3">
+                  <p className="text-xs font-semibold mb-2">Contribuições de Terceiros — FPAS {fpas.fpas} ({fpas.descricao})</p>
+                  <div className="space-y-1.5">
+                    {fpas.entidades.map((e,i) => (
+                      <div key={i} className="flex justify-between text-[11px]">
+                        <span className="text-muted-foreground">{e.entidade}</span>
+                        <span className="font-medium">{e.aliquota.toFixed(1)}%</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-xs font-semibold pt-1 border-t border-border/30">
+                      <span>Total Terceiros</span><span>{fpasTotal.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="text-[11px] text-muted-foreground space-y-0.5">
+                  <p>• <strong>FAP</strong>: multiplica o RAT entre 0,5× e 2× conforme histórico de acidentes</p>
+                  <p>• <strong>INSS empregado</strong>: 7,5% a 14% (tabela progressiva 2024)</p>
+                  <p>• <strong>FGTS</strong>: 8% sobre o salário bruto</p>
+                  <p>• Simples Nacional Anexo IV: INSS patronal recolhido separado (GPS), não incluso no DAS</p>
+                </div>
+              </div>
+            )}
+
+            {tab === "iss" && iss && (
+              <div className="space-y-3">
+                {iss.sujeito ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">ISS — Imposto Sobre Serviços</span>
+                      <Badge className="text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30">Sujeito ao ISS</Badge>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">Item LC 116/2003</p>
+                        <p className="font-bold text-base text-blue-300">{iss.item}</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">Alíquota Mínima</p>
+                        <p className="font-bold text-base text-green-300">2%</p>
+                        <p className="text-[10px] text-muted-foreground">por lei</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground">Alíquota Máxima</p>
+                        <p className="font-bold text-base text-red-300">5%</p>
+                        <p className="text-[10px] text-muted-foreground">por lei</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border/30 bg-secondary/10 p-3 text-[11px] text-muted-foreground">
+                      <p className="font-semibold text-foreground text-xs mb-1">{iss.descricao}</p>
+                      <p>A alíquota exata depende do município onde o serviço é prestado. Simples Nacional inclui ISS na guia DAS (exceto Anexo IV).</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+                    <div className="flex items-center gap-2 mb-1"><AlertTriangle className="w-3.5 h-3.5 text-amber-400" /><span className="text-xs font-semibold text-amber-300">Não sujeito ao ISS</span></div>
+                    <p className="text-[11px] text-muted-foreground">{iss.descricao}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {tab === "desoneracao" && (
+              <div className="space-y-3">
+                {cprb ? (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">CPRB — Desoneração da Folha</span>
+                      <Badge className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Elegível</Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-emerald-500/10 rounded-xl border border-emerald-500/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground mb-1">Alíquota CPRB</p>
+                        <p className="font-bold text-2xl text-emerald-300">{cprb.aliquota}%</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">sobre receita bruta</p>
+                      </div>
+                      <div className="bg-secondary/30 rounded-xl border border-border/30 p-3 text-center">
+                        <p className="text-[10px] text-muted-foreground mb-1">Substitui</p>
+                        <p className="font-bold text-2xl text-red-300">20%</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">CPP sobre folha</p>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 p-3 text-[11px] text-muted-foreground">
+                      <p className="font-semibold text-emerald-300 text-xs mb-1">Setor: {cprb.descricao}</p>
+                      <p>{cprb.exemplo}</p>
+                      <p className="mt-1.5">A CPRB <strong>substitui</strong> os 20% CPP, mas <strong>mantém</strong> RAT/FAP e contribuições de terceiros. Lei 12.546/2011.</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold">CPRB — Desoneração da Folha</span>
+                      <Badge className="text-[10px] bg-slate-500/20 text-slate-400 border border-slate-500/30">Não elegível</Badge>
+                    </div>
+                    <div className="rounded-lg border border-border/30 bg-secondary/10 p-3 text-[11px] text-muted-foreground">
+                      <p>O CNAE <strong>{cnaeInfo?.cnaePrincipalCodigo}</strong> não está entre os setores elegíveis à Contribuição Previdenciária sobre Receita Bruta (CPRB) conforme Lei 12.546/2011 e alterações.</p>
+                      <p className="mt-1.5">A empresa permanece no regime padrão de <strong>20% CPP sobre a folha de salários</strong>.</p>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
           </div>
         </div>
-      </SectionCollapse>
+      )}
     </div>
   );
 }
