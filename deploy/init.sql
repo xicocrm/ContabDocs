@@ -306,6 +306,12 @@ CREATE TABLE IF NOT EXISTS impostos (
 ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS slug TEXT;
 ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS logo_url TEXT;
 ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS cpf TEXT;
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS contador_nome TEXT;
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS contador_crc TEXT;
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS contador_cpf TEXT;
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS contador_email TEXT;
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS contador_telefone TEXT;
+ALTER TABLE escritorios ADD COLUMN IF NOT EXISTS contador_assinatura TEXT;
 
 -- clientes: colunas adicionadas em versões posteriores
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS cpf TEXT;
@@ -327,6 +333,10 @@ ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_municipal TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_municipal_nome TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_estadual TEXT;
 ALTER TABLE clientes ADD COLUMN IF NOT EXISTS arquivo_inscricao_estadual_nome TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS documento_pessoal TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS documento_pessoal_nome TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS comprovante_endereco TEXT;
+ALTER TABLE clientes ADD COLUMN IF NOT EXISTS comprovante_endereco_nome TEXT;
 
 -- usuarios: colunas adicionadas em versões posteriores
 ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS senha TEXT;
