@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { db, clientesTable, escritoriosTable, portalArquivosTable } from "@workspace/db";
+import { db, clientesTable, escritoriosTable, portalArquivosTable, impostosTable } from "@workspace/db";
 import { eq, and, or, sql } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -29,10 +29,16 @@ function verifyPortalToken(authHeader?: string): { clienteId: number; escritorio
   } catch { return null; }
 }
 
+function verifyMainToken(authHeader?: string): boolean {
+  if (!authHeader?.startsWith("Bearer ")) return false;
+  try { jwt.verify(authHeader.slice(7), SECRET); return true; } catch { return false; }
+}
+
+// ─── Portal Login ────────────────────────────────────────────────────────────
+
 router.post("/login", async (req, res) => {
   try {
     const { documento, email, senha, slug } = req.body;
-    // Aceita 'documento' (novo) ou 'email' (retrocompatibilidade)
     const identificador = documento || email;
     if (!identificador || !senha || !slug) {
       res.status(400).json({ message: "Informe o CNPJ/CPF, senha e escritório" }); return;
@@ -45,12 +51,10 @@ router.post("/login", async (req, res) => {
       res.status(404).json({ message: "Escritório não encontrado. Verifique o endereço do portal." }); return;
     }
 
-    // Tenta buscar por CNPJ/CPF (somente dígitos) ou por e-mail (retrocompat.)
     const docLimpo = String(identificador).replace(/\D/g, "");
     let cliente = null;
 
     if (docLimpo.length >= 11) {
-      // Busca por CNPJ (14 dígitos) ou CPF (11 dígitos) — ignora formatação
       const [found] = await db.select().from(clientesTable)
         .where(and(
           eq(clientesTable.escritorioId, escritorio.id),
@@ -62,7 +66,6 @@ router.post("/login", async (req, res) => {
       cliente = found || null;
     }
 
-    // Fallback: busca por e-mail (para clientes cadastrados antes da mudança)
     if (!cliente && identificador.includes("@")) {
       const [found] = await db.select().from(clientesTable)
         .where(and(
@@ -86,25 +89,14 @@ router.post("/login", async (req, res) => {
     }
 
     const token = jwt.sign(
-      {
-        clienteId: cliente.id,
-        escritorioId: escritorio.id,
-        nome: cliente.razaoSocial || cliente.nomeResponsavel,
-        slug,
-        type: "portal",
-      },
+      { clienteId: cliente.id, escritorioId: escritorio.id, nome: cliente.razaoSocial || cliente.nomeResponsavel, slug, type: "portal" },
       SECRET,
       { expiresIn: "12h" }
     );
 
     res.json({
       token,
-      cliente: {
-        id: cliente.id,
-        nome: cliente.razaoSocial || cliente.nomeResponsavel,
-        email: cliente.emailPortal,
-        codigoCliente: cliente.codigoCliente,
-      },
+      cliente: { id: cliente.id, nome: cliente.razaoSocial || cliente.nomeResponsavel, email: cliente.emailPortal, codigoCliente: cliente.codigoCliente },
       escritorio: { nome: escritorio.nomeFantasia || escritorio.razaoSocial, slug },
     });
   } catch (err) {
@@ -112,6 +104,8 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ message: "Erro ao processar login" });
   }
 });
+
+// ─── Portal Me ───────────────────────────────────────────────────────────────
 
 router.get("/me", async (req, res) => {
   const session = verifyPortalToken(req.headers.authorization);
@@ -137,15 +131,15 @@ router.get("/me", async (req, res) => {
   }
 });
 
+// ─── Arquivos (Portal cliente) ────────────────────────────────────────────────
+
 router.get("/arquivos", async (req, res) => {
   const session = verifyPortalToken(req.headers.authorization);
   if (!session) { res.status(401).json({ message: "Não autenticado" }); return; }
   try {
     const rows = await db.select().from(portalArquivosTable)
-      .where(and(
-        eq(portalArquivosTable.escritorioId, session.escritorioId),
-        eq(portalArquivosTable.clienteId, session.clienteId),
-      )).orderBy(portalArquivosTable.id);
+      .where(and(eq(portalArquivosTable.escritorioId, session.escritorioId), eq(portalArquivosTable.clienteId, session.clienteId)))
+      .orderBy(portalArquivosTable.id);
     res.json(rows.reverse());
   } catch (err) {
     res.status(500).json({ message: "Erro ao listar arquivos" });
@@ -190,12 +184,11 @@ router.get("/download/:id", async (req, res) => {
   }
 });
 
+// ─── Arquivos (Escritório) ────────────────────────────────────────────────────
+
 router.get("/escritorio/arquivos", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const mainToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!mainToken) { res.status(401).json({ message: "Não autenticado" }); return; }
+  if (!verifyMainToken(req.headers.authorization)) { res.status(401).json({ message: "Não autenticado" }); return; }
   try {
-    jwt.verify(mainToken, SECRET);
     const escritorioId = parseInt(String(req.query.escritorioId || ""));
     const clienteId = parseInt(String(req.query.clienteId || ""));
     if (isNaN(escritorioId)) { res.status(400).json({ message: "escritorioId obrigatório" }); return; }
@@ -210,11 +203,8 @@ router.get("/escritorio/arquivos", async (req, res) => {
 });
 
 router.post("/escritorio/upload", upload.single("arquivo"), async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const mainToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!mainToken) { res.status(401).json({ message: "Não autenticado" }); return; }
+  if (!verifyMainToken(req.headers.authorization)) { res.status(401).json({ message: "Não autenticado" }); return; }
   try {
-    jwt.verify(mainToken, SECRET);
     if (!req.file) { res.status(400).json({ message: "Nenhum arquivo enviado" }); return; }
     const escritorioId = parseInt(req.body.escritorioId);
     const clienteId = req.body.clienteId ? parseInt(req.body.clienteId) : undefined;
@@ -237,11 +227,8 @@ router.post("/escritorio/upload", upload.single("arquivo"), async (req, res) => 
 });
 
 router.delete("/arquivos/:id", async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const mainToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!mainToken) { res.status(401).json({ message: "Não autenticado" }); return; }
+  if (!verifyMainToken(req.headers.authorization)) { res.status(401).json({ message: "Não autenticado" }); return; }
   try {
-    jwt.verify(mainToken, SECRET);
     const id = parseInt(req.params.id);
     const [arq] = await db.select().from(portalArquivosTable).where(eq(portalArquivosTable.id, id));
     if (arq) {
@@ -253,6 +240,123 @@ router.delete("/arquivos/:id", async (req, res) => {
     res.status(401).json({ message: "Token inválido" });
   }
 });
+
+// ─── Impostos ─────────────────────────────────────────────────────────────────
+
+router.get("/impostos", async (req, res) => {
+  if (!verifyMainToken(req.headers.authorization)) { res.status(401).json({ message: "Não autenticado" }); return; }
+  try {
+    const escritorioId = parseInt(String(req.query.escritorioId || ""));
+    if (isNaN(escritorioId)) { res.status(400).json({ message: "escritorioId obrigatório" }); return; }
+
+    let conditions = [eq(impostosTable.escritorioId, escritorioId)];
+
+    const clienteId = parseInt(String(req.query.clienteId || ""));
+    if (!isNaN(clienteId)) conditions.push(eq(impostosTable.clienteId, clienteId));
+
+    const status = String(req.query.status || "");
+    if (status && status !== "todos") conditions.push(eq(impostosTable.status, status));
+
+    const tipo = String(req.query.tipo || "");
+    if (tipo && tipo !== "todos") conditions.push(eq(impostosTable.tipo, tipo));
+
+    const rows = await db.select().from(impostosTable)
+      .where(and(...conditions))
+      .orderBy(impostosTable.id);
+    res.json(rows.reverse());
+  } catch (err) {
+    req.log.error({ err }, "Erro ao listar impostos");
+    res.status(500).json({ message: "Erro ao listar impostos" });
+  }
+});
+
+router.post("/impostos", upload.single("arquivo"), async (req, res) => {
+  if (!verifyMainToken(req.headers.authorization)) { res.status(401).json({ message: "Não autenticado" }); return; }
+  try {
+    const escritorioId = parseInt(req.body.escritorioId);
+    if (isNaN(escritorioId)) { res.status(400).json({ message: "escritorioId obrigatório" }); return; }
+
+    const clienteId = req.body.clienteId ? parseInt(req.body.clienteId) : null;
+    const rows = await db.insert(impostosTable).values({
+      escritorioId,
+      clienteId: clienteId || null,
+      tipo: req.body.tipo || "",
+      competencia: req.body.competencia || "",
+      vencimento: req.body.vencimento || null,
+      valor: req.body.valor || null,
+      status: req.body.status || "pendente",
+      arquivoCaminho: req.file?.filename || null,
+      arquivoNome: req.file?.originalname || null,
+      observacoes: req.body.observacoes || null,
+    }).returning();
+    res.status(201).json(rows[0]);
+  } catch (err: any) {
+    req.log.error({ err }, "Erro ao criar imposto");
+    res.status(500).json({ message: "Erro ao criar imposto" });
+  }
+});
+
+router.put("/impostos/:id", upload.single("arquivo"), async (req, res) => {
+  if (!verifyMainToken(req.headers.authorization)) { res.status(401).json({ message: "Não autenticado" }); return; }
+  try {
+    const id = parseInt(req.params.id);
+    const update: Record<string, any> = { updatedAt: new Date() };
+
+    if (req.body.tipo !== undefined) update.tipo = req.body.tipo;
+    if (req.body.competencia !== undefined) update.competencia = req.body.competencia;
+    if (req.body.vencimento !== undefined) update.vencimento = req.body.vencimento;
+    if (req.body.valor !== undefined) update.valor = req.body.valor;
+    if (req.body.status !== undefined) update.status = req.body.status;
+    if (req.body.clienteId !== undefined) update.clienteId = req.body.clienteId ? parseInt(req.body.clienteId) : null;
+    if (req.body.observacoes !== undefined) update.observacoes = req.body.observacoes;
+
+    if (req.file) {
+      const [old] = await db.select().from(impostosTable).where(eq(impostosTable.id, id));
+      if (old?.arquivoCaminho) {
+        try { fs.unlinkSync(path.join(UPLOADS_DIR, old.arquivoCaminho)); } catch {}
+      }
+      update.arquivoCaminho = req.file.filename;
+      update.arquivoNome = req.file.originalname;
+    }
+
+    const rows = await db.update(impostosTable).set(update).where(eq(impostosTable.id, id)).returning();
+    res.json(rows[0]);
+  } catch (err: any) {
+    req.log.error({ err }, "Erro ao atualizar imposto");
+    res.status(500).json({ message: "Erro ao atualizar imposto" });
+  }
+});
+
+router.delete("/impostos/:id", async (req, res) => {
+  if (!verifyMainToken(req.headers.authorization)) { res.status(401).json({ message: "Não autenticado" }); return; }
+  try {
+    const id = parseInt(req.params.id);
+    const [imp] = await db.select().from(impostosTable).where(eq(impostosTable.id, id));
+    if (imp?.arquivoCaminho) {
+      try { fs.unlinkSync(path.join(UPLOADS_DIR, imp.arquivoCaminho)); } catch {}
+    }
+    await db.delete(impostosTable).where(eq(impostosTable.id, id));
+    res.status(204).send();
+  } catch {
+    res.status(500).json({ message: "Erro ao excluir imposto" });
+  }
+});
+
+router.get("/impostos/download/:id", async (req, res) => {
+  if (!verifyMainToken(req.headers.authorization)) { res.status(401).json({ message: "Não autenticado" }); return; }
+  try {
+    const id = parseInt(req.params.id);
+    const [imp] = await db.select().from(impostosTable).where(eq(impostosTable.id, id));
+    if (!imp?.arquivoCaminho) { res.status(404).json({ message: "Sem arquivo anexo" }); return; }
+    const filePath = path.join(UPLOADS_DIR, imp.arquivoCaminho);
+    if (!fs.existsSync(filePath)) { res.status(404).json({ message: "Arquivo não encontrado" }); return; }
+    res.download(filePath, imp.arquivoNome || "documento");
+  } catch {
+    res.status(500).json({ message: "Erro ao baixar arquivo" });
+  }
+});
+
+// ─── Info Portal (público) ────────────────────────────────────────────────────
 
 router.get("/info/:slug", async (req, res) => {
   try {
