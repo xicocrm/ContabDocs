@@ -58,6 +58,7 @@ const emptyCliente = {
   inscricaoMunicipal: '', inscricaoEstadual: '',
   arquivoInscricaoMunicipal: '', arquivoInscricaoMunicipalNome: '',
   arquivoInscricaoEstadual: '', arquivoInscricaoEstadualNome: '',
+  iptuNumero: '',
   documentoPessoal: '', documentoPessoalNome: '',
   comprovanteEndereco: '', comprovanteEnderecoNome: '',
 };
@@ -720,6 +721,7 @@ export default function ClientesPage() {
                   arquivoInscricaoMunicipalNome: clienteForm.arquivoInscricaoMunicipalNome || '',
                   arquivoInscricaoEstadual: clienteForm.arquivoInscricaoEstadual || '',
                   arquivoInscricaoEstadualNome: clienteForm.arquivoInscricaoEstadualNome || '',
+                  iptuNumero: clienteForm.iptuNumero || '',
                 }}
                 onFormChange={(campo, valor) => setClienteForm((p: any) => ({ ...p, [campo]: valor }))}
                 clienteId={clienteId}
