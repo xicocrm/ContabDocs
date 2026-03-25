@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { EscritorioProvider } from "@/contexts/EscritorioContext";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { Loader2 } from "lucide-react";
 
 import Dashboard from "@/pages/Dashboard";
@@ -20,6 +21,7 @@ import ProtocolosPage from "@/pages/Protocolos";
 import CampanhasPage from "@/pages/Campanhas";
 import ConsultasFiscaisPage from "@/pages/ConsultasFiscais";
 import PortalGerenciarPage from "@/pages/PortalGerenciar";
+import TarefasPage from "@/pages/Tarefas";
 import NotFound from "@/pages/not-found";
 import Login from "@/pages/Login";
 import PortalLogin from "@/pages/PortalLogin";
@@ -82,6 +84,7 @@ function ProtectedRouter() {
           <Route path="/campanhas" component={CampanhasPage} />
           <Route path="/consultas-fiscais" component={ConsultasFiscaisPage} />
           <Route path="/portal-gerenciar" component={PortalGerenciarPage} />
+          <Route path="/tarefas" component={TarefasPage} />
           <Route component={NotFound} />
         </Switch>
       </EscritorioProvider>
@@ -103,14 +106,16 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-        </AuthProvider>
-        <Toaster />
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <AuthProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+          </AuthProvider>
+          <Toaster />
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 }

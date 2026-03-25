@@ -35,15 +35,28 @@ if [ ! -d "$INSTALL_DIR/.git" ]; then
 fi
 ok "Instalação encontrada em $INSTALL_DIR"
 
-# ── 2. Atualizar código do GitHub ───────────────────────────────
-step "2/6 - Atualizando código do GitHub"
+# ── 2. Backup automático antes de atualizar ────────────────────
+step "2/7 - Backup automático pré-atualização"
+BACKUP_DIR="$INSTALL_DIR/backups"
+mkdir -p "$BACKUP_DIR"
+BACKUP_FILE="$BACKUP_DIR/pre_update_$(date +%Y%m%d_%H%M%S).sql.gz"
+if docker exec contabdoc_db pg_isready -U contabdoc -d contabdoc &>/dev/null 2>&1; then
+  docker exec contabdoc_db pg_dump -U contabdoc contabdoc | gzip > "$BACKUP_FILE" 2>/dev/null
+  ok "Backup salvo em $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+  find "$BACKUP_DIR" -name "pre_update_*.sql.gz" -mtime +30 -delete 2>/dev/null || true
+else
+  warn "Banco não disponível — pulando backup pré-atualização"
+fi
+
+# ── 3. Atualizar código do GitHub ───────────────────────────────
+step "3/7 - Atualizando código do GitHub"
 cd "$INSTALL_DIR"
 git fetch origin
 git reset --hard origin/main
 ok "Código atualizado para a versão mais recente ($(git log --oneline -1))"
 
-# ── 3. Garantir .env ────────────────────────────────────────────
-step "3/6 - Verificando configuração"
+# ── 4. Garantir .env ────────────────────────────────────────────
+step "4/7 - Verificando configuração"
 if [ ! -f "$DEPLOY_DIR/.env" ]; then
   warn ".env não encontrado — criando..."
   JWT_GENERATED=$(openssl rand -base64 48 | tr -d '\n/+=')
@@ -69,8 +82,8 @@ else
   fi
 fi
 
-# ── 4. Rebuild dos containers ───────────────────────────────────
-step "4/6 - Compilando e atualizando containers"
+# ── 5. Rebuild dos containers ───────────────────────────────────
+step "5/7 - Compilando e atualizando containers"
 cd "$DEPLOY_DIR"
 log "Parando containers existentes..."
 docker compose --env-file .env down --remove-orphans 2>/dev/null || true
@@ -82,8 +95,8 @@ log "Iniciando todos os serviços..."
 docker compose --env-file .env up -d
 ok "Containers iniciados"
 
-# ── 5. Aguardar saúde dos serviços ──────────────────────────────
-step "5/6 - Aguardando serviços ficarem saudáveis"
+# ── 6. Aguardar saúde dos serviços ──────────────────────────────
+step "6/7 - Aguardando serviços ficarem saudáveis"
 log "Aguardando banco de dados..."
 timeout 60 bash -c 'until docker exec contabdoc_db pg_isready -U contabdoc -d contabdoc &>/dev/null; do sleep 2; done' \
   && ok "Banco de dados pronto" || warn "Timeout aguardando banco"
@@ -99,8 +112,8 @@ log "Aguardando API ficar saudável via nginx (até 90s)..."
 timeout 90 bash -c 'until curl -sf http://localhost/api/health &>/dev/null; do sleep 3; done' \
   && ok "API saudável" || warn "API demorou mais que o esperado (verificar logs abaixo)"
 
-# ── 6. Verificação final ────────────────────────────────────────
-step "6/6 - Verificação final"
+# ── 7. Verificação final ────────────────────────────────────────
+step "7/7 - Verificação final"
 echo ""
 docker compose --env-file .env ps
 echo ""

@@ -5,13 +5,20 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
-COPY lib/db/package.json ./lib/db/
+COPY lib/db/package.json lib/db/tsconfig.json ./lib/db/
 COPY lib/api-zod/package.json ./lib/api-zod/
 COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
-RUN pnpm install --no-frozen-lockfile --ignore-scripts
+RUN pnpm install --no-frozen-lockfile --ignore-scripts 2>/dev/null || pnpm install --no-lockfile --ignore-scripts
 
-FROM deps AS builder
-COPY . .
+FROM base AS builder
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/artifacts/api-server/node_modules ./artifacts/api-server/node_modules 2>/dev/null || true
+COPY --from=deps /app/lib/db/node_modules ./lib/db/node_modules 2>/dev/null || true
+COPY --from=deps /app/lib/api-zod/node_modules ./lib/api-zod/node_modules 2>/dev/null || true
+COPY --from=deps /app/lib/integrations-anthropic-ai/node_modules ./lib/integrations-anthropic-ai/node_modules 2>/dev/null || true
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY artifacts/api-server ./artifacts/api-server
+COPY lib ./lib
 RUN pnpm --filter @workspace/api-server run build
 
 FROM node:20-alpine AS runner
@@ -20,10 +27,10 @@ WORKDIR /app
 
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
-COPY lib/db/package.json ./lib/db/
+COPY lib/db/package.json lib/db/tsconfig.json ./lib/db/
 COPY lib/api-zod/package.json ./lib/api-zod/
 COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
-RUN pnpm install --no-frozen-lockfile --ignore-scripts --prod
+RUN pnpm install --no-frozen-lockfile --ignore-scripts --prod 2>/dev/null || pnpm install --no-lockfile --ignore-scripts --prod
 
 COPY lib/db/src ./lib/db/src
 COPY lib/db/drizzle.config.ts ./lib/db/drizzle.config.ts
