@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { TabSocios } from "./clientes/TabSocios";
 import { TabGoverno } from "./clientes/TabGoverno";
+import { TabFiscal } from "./clientes/TabFiscal";
 
 const BASE_URL = (import.meta.env.BASE_URL ?? "").replace(/\/$/, "");
 
@@ -61,6 +62,9 @@ const emptyCliente = {
   iptuNumero: '',
   documentoPessoal: '', documentoPessoalNome: '',
   comprovanteEndereco: '', comprovanteEnderecoNome: '',
+  faturamentoAnual: '', faturamentoMes: '', anexoSimples: '',
+  dasValorMensal: '', optanteSimples: '', situacaoSimples: '',
+  dataOpcaoSimples: '', regimeFiscalObs: '', aliquotaEfetiva: '',
 };
 
 const emptyContrato = {
@@ -269,6 +273,16 @@ export default function ClientesPage() {
     } finally { setIsSavingCliente(false); }
   };
 
+  const salvarFiscal = async (dados: any) => {
+    if (!clienteId) return;
+    setIsSavingCliente(true);
+    try {
+      await atualizarCliente.mutateAsync({ id: clienteId, data: { ...clienteForm, ...dados } });
+      setClienteForm((p: any) => ({ ...p, ...dados }));
+      queryClient.invalidateQueries({ queryKey: getListarClientesQueryKey() });
+    } finally { setIsSavingCliente(false); }
+  };
+
   const excluirClienteHandler = async (id: number) => {
     if (!confirm("Deseja excluir este cliente e todos os seus dados?")) return;
     try {
@@ -357,6 +371,9 @@ export default function ClientesPage() {
               <TabsTrigger value="juridico" className="data-[state=active]:bg-primary data-[state=active]:text-white gap-1.5 shrink-0" disabled={!clienteId}>
                 <Scale className="w-3.5 h-3.5" /> Jurídico
                 {contratos.length > 0 && <Badge className="ml-1 bg-primary/20 text-primary text-xs h-4 px-1">{contratos.length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="fiscal" className="data-[state=active]:bg-primary data-[state=active]:text-white gap-1.5 shrink-0" disabled={!clienteId}>
+                <DollarSign className="w-3.5 h-3.5" /> Fiscal
               </TabsTrigger>
               <TabsTrigger value="portal" className="data-[state=active]:bg-primary data-[state=active]:text-white gap-1.5 shrink-0">
                 <FolderOpen className="w-3.5 h-3.5" /> Portal
@@ -793,6 +810,29 @@ export default function ClientesPage() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* ── FISCAL ── */}
+            <TabsContent value="fiscal" className="mt-5">
+              <TabFiscal
+                clienteId={clienteId}
+                cnpj={clienteForm.cnpj || ''}
+                atividadePrincipal={clienteForm.atividadePrincipal || ''}
+                initialData={{
+                  regimeTributario: (clienteForm as any).regimeTributario,
+                  faturamentoAnual:  (clienteForm as any).faturamentoAnual,
+                  faturamentoMes:    (clienteForm as any).faturamentoMes,
+                  anexoSimples:      (clienteForm as any).anexoSimples,
+                  dasValorMensal:    (clienteForm as any).dasValorMensal,
+                  optanteSimples:    (clienteForm as any).optanteSimples,
+                  situacaoSimples:   (clienteForm as any).situacaoSimples,
+                  dataOpcaoSimples:  (clienteForm as any).dataOpcaoSimples,
+                  regimeFiscalObs:   (clienteForm as any).regimeFiscalObs,
+                  aliquotaEfetiva:   (clienteForm as any).aliquotaEfetiva,
+                }}
+                onSave={salvarFiscal}
+                isSaving={isSavingCliente}
+              />
             </TabsContent>
 
             {/* ── PORTAL ── */}
