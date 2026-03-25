@@ -5,7 +5,7 @@ WORKDIR /app
 COPY . .
 
 RUN pnpm install --no-frozen-lockfile --ignore-scripts && \
-    node node_modules/esbuild/install.js
+    pnpm rebuild esbuild
 
 RUN NODE_ENV=production pnpm --filter @workspace/contabdoc run build
 

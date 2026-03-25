@@ -9,8 +9,7 @@ COPY lib/db/package.json lib/db/tsconfig.json ./lib/db/
 COPY lib/api-zod/package.json ./lib/api-zod/
 COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
 RUN pnpm install --no-lockfile --ignore-scripts && \
-    node -e "try{require('esbuild/install')}catch{}" && \
-    npx --yes esbuild --version
+    pnpm rebuild esbuild
 
 FROM deps AS builder
 COPY artifacts/api-server ./artifacts/api-server
