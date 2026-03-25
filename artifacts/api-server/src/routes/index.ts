@@ -16,6 +16,7 @@ import consultasFiscaisRouter from "./consultas-fiscais";
 import authRouter from "./auth";
 import portalRouter from "./portal";
 import alvarasRouter from "./alvaras";
+import extrairDocumentoRouter from "./extrair-documento";
 
 const router: IRouter = Router();
 
@@ -36,5 +37,6 @@ router.use("/protocolos", protocolosRouter);
 router.use("/campanhas", campanhasRouter);
 router.use("/consultas-fiscais", consultasFiscaisRouter);
 router.use("/alvaras", alvarasRouter);
+router.use("/extrair-documento", extrairDocumentoRouter);
 
 export default router;
