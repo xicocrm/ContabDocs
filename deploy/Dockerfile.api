@@ -3,40 +3,34 @@ RUN npm install -g pnpm@9
 WORKDIR /app
 
 FROM base AS deps
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml ./
 COPY artifacts/api-server/package.json ./artifacts/api-server/
 COPY lib/db/package.json lib/db/tsconfig.json ./lib/db/
 COPY lib/api-zod/package.json ./lib/api-zod/
 COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
-RUN pnpm install --no-frozen-lockfile --ignore-scripts 2>/dev/null || pnpm install --no-lockfile --ignore-scripts
+RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
+    pnpm install --no-lockfile --ignore-scripts && \
+    npx --yes esbuild --version >/dev/null 2>&1 || true
 
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/artifacts/api-server/node_modules ./artifacts/api-server/node_modules 2>/dev/null || true
-COPY --from=deps /app/lib/db/node_modules ./lib/db/node_modules 2>/dev/null || true
-COPY --from=deps /app/lib/api-zod/node_modules ./lib/api-zod/node_modules 2>/dev/null || true
-COPY --from=deps /app/lib/integrations-anthropic-ai/node_modules ./lib/integrations-anthropic-ai/node_modules 2>/dev/null || true
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+FROM deps AS builder
 COPY artifacts/api-server ./artifacts/api-server
 COPY lib ./lib
 RUN pnpm --filter @workspace/api-server run build
 
 FROM node:20-alpine AS runner
-RUN npm install -g pnpm@9
 WORKDIR /app
 
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY artifacts/api-server/package.json ./artifacts/api-server/
-COPY lib/db/package.json lib/db/tsconfig.json ./lib/db/
-COPY lib/api-zod/package.json ./lib/api-zod/
-COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
-RUN pnpm install --no-frozen-lockfile --ignore-scripts --prod 2>/dev/null || pnpm install --no-lockfile --ignore-scripts --prod
+COPY --from=builder /app/artifacts/api-server/dist ./artifacts/api-server/dist
+COPY --from=builder /app/artifacts/api-server/package.json ./artifacts/api-server/package.json
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json ./
 
 COPY lib/db/src ./lib/db/src
+COPY lib/db/package.json lib/db/tsconfig.json ./lib/db/
 COPY lib/db/drizzle.config.ts ./lib/db/drizzle.config.ts
 COPY lib/api-zod ./lib/api-zod
 COPY lib/integrations-anthropic-ai/src ./lib/integrations-anthropic-ai/src
-COPY --from=builder /app/artifacts/api-server/dist ./artifacts/api-server/dist
+COPY lib/integrations-anthropic-ai/package.json ./lib/integrations-anthropic-ai/
 
 RUN mkdir -p /app/uploads && chown -R node:node /app/uploads
 
